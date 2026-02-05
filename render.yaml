@@ -2,6 +2,7 @@ services:
   - type: web
     name: hephaestus-web
     runtime: node
+    plan: free
     rootDir: .
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter hephaestus-web build
     startCommand: pnpm --filter hephaestus-web start
@@ -12,6 +13,7 @@ services:
   - type: web
     name: hephaestus-api
     runtime: node
+    plan: free
     rootDir: services/api
     buildCommand: npm install
     startCommand: node src/index.js
@@ -50,6 +52,7 @@ services:
   - type: web
     name: hephaestus-ai
     runtime: python
+    plan: free
     rootDir: services/ai
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
