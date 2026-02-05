@@ -9,8 +9,8 @@ const PROVIDERS = [
   { id: "custom", label: "Custom" }
 ];
 
-function parseSse(buffer) {
-  const events = [];
+function parseSse(buffer: string) {
+  const events: Array<{ type?: string; text?: string; message?: string }> = [];
   let rest = buffer;
   let idx;
   while ((idx = rest.indexOf("\n\n")) >= 0) {
