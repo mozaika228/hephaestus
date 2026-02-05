@@ -44,7 +44,7 @@ export default function ChatPanel() {
   const [pending, setPending] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileInfo, setFileInfo] = useState<{ id?: string; name?: string; providerFileId?: string } | null>(null);
-  const [analysis, setAnalysis] = useState(null);
+  const [analysis, setAnalysis] = useState<{ text?: string; error?: string } | null>(null);
 
   const sendMessage = async () => {
     if (!input.trim() || pending) return;
