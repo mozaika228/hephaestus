@@ -7,7 +7,7 @@ export default function PlannerPanel() {
     () => process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000",
     []
   );
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState<Array<{ id: string; title: string; status: string }>>([]);
   const [title, setTitle] = useState("");
 
   const loadTasks = async () => {
