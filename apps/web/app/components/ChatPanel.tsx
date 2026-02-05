@@ -39,7 +39,7 @@ export default function ChatPanel() {
   const [provider, setProvider] = useState("openai");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Готов к работе. Что ковать сегодня?" }
+    { role: "assistant", text: "Р“РѕС‚РѕРІ Рє СЂР°Р±РѕС‚Рµ. Р§С‚Рѕ РєРѕРІР°С‚СЊ СЃРµРіРѕРґРЅСЏ?" }
   ]);
   const [pending, setPending] = useState(false);
   const [file, setFile] = useState(null);
@@ -84,12 +84,12 @@ export default function ChatPanel() {
             });
           }
           if (event.type === "error") {
-            setMessages((prev) => [...prev, { role: "assistant", text: `Ошибка: ${event.message}` }]);
+            setMessages((prev) => [...prev, { role: "assistant", text: `РћС€РёР±РєР°: ${event.message}` }]);
           }
         }
       }
     } catch (error) {
-      setMessages((prev) => [...prev, { role: "assistant", text: "Ошибка соединения." }]);
+      setMessages((prev) => [...prev, { role: "assistant", text: "РћС€РёР±РєР° СЃРѕРµРґРёРЅРµРЅРёСЏ." }]);
     } finally {
       setPending(false);
     }
@@ -128,7 +128,7 @@ export default function ChatPanel() {
       <div className="console-header">
         <div>
           <h3>Hephaestus Console</h3>
-          <p>Чат, файлы, провайдеры.</p>
+          <p>Р§Р°С‚, С„Р°Р№Р»С‹, РїСЂРѕРІР°Р№РґРµСЂС‹.</p>
         </div>
         <select value={provider} onChange={(e) => setProvider(e.target.value)}>
           {PROVIDERS.map((item) => (
@@ -149,31 +149,31 @@ export default function ChatPanel() {
         </div>
         <div className="inputs">
           <input
-            placeholder="Введите запрос..."
+            placeholder="Р’РІРµРґРёС‚Рµ Р·Р°РїСЂРѕСЃ..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => (e.key === "Enter" ? sendMessage() : null)}
           />
           <button className="primary" onClick={sendMessage} disabled={pending}>
-            {pending ? "..." : "Отправить"}
+            {pending ? "..." : "РћС‚РїСЂР°РІРёС‚СЊ"}
           </button>
         </div>
         <div className="files">
           <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
           <button className="ghost" onClick={uploadFile}>
-            Загрузить файл
+            Р—Р°РіСЂСѓР·РёС‚СЊ С„Р°Р№Р»
           </button>
           <button className="ghost" onClick={analyzeFile}>
-            Анализировать файл
+            РђРЅР°Р»РёР·РёСЂРѕРІР°С‚СЊ С„Р°Р№Р»
           </button>
           {fileInfo ? (
-            <span className="file-tag">Файл: {fileInfo.name}</span>
+            <span className="file-tag">Р¤Р°Р№Р»: {fileInfo.name}</span>
           ) : null}
         </div>
         {analysis ? (
           <div className="analysis">
-            <h4>Результат анализа</h4>
-            <pre>{analysis.text || analysis.error || "Нет данных"}</pre>
+            <h4>Р РµР·СѓР»СЊС‚Р°С‚ Р°РЅР°Р»РёР·Р°</h4>
+            <pre>{analysis.text || analysis.error || "РќРµС‚ РґР°РЅРЅС‹С…"}</pre>
           </div>
         ) : null}
       </div>

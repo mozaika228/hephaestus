@@ -37,19 +37,19 @@ export default function PlannerPanel() {
   return (
     <section className="planner">
       <div className="planner-head">
-        <h3>Планировщик</h3>
-        <p>Создавай задачи и синхронизируй с интеграциями.</p>
+        <h3>РџР»Р°РЅРёСЂРѕРІС‰РёРє</h3>
+        <p>РЎРѕР·РґР°РІР°Р№ Р·Р°РґР°С‡Рё Рё СЃРёРЅС…СЂРѕРЅРёР·РёСЂСѓР№ СЃ РёРЅС‚РµРіСЂР°С†РёСЏРјРё.</p>
       </div>
       <div className="planner-body">
         <div className="planner-input">
           <input
-            placeholder="Новая задача"
+            placeholder="РќРѕРІР°СЏ Р·Р°РґР°С‡Р°"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => (e.key === "Enter" ? addTask() : null)}
           />
           <button className="primary" onClick={addTask}>
-            Добавить
+            Р”РѕР±Р°РІРёС‚СЊ
           </button>
         </div>
         <div className="planner-list">

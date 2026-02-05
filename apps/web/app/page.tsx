@@ -7,44 +7,44 @@ export default function HomePage() {
       <header className="topbar">
         <div className="logo">Hephaestus</div>
         <nav className="nav">
-          <a href="#capabilities">Возможности</a>
-          <a href="#platforms">Платформы</a>
-          <a href="#console">Консоль</a>
-          <a href="#pipeline">Пайплайн</a>
-          <a href="#start">Старт</a>
+          <a href="#capabilities">Р’РѕР·РјРѕР¶РЅРѕСЃС‚Рё</a>
+          <a href="#platforms">РџР»Р°С‚С„РѕСЂРјС‹</a>
+          <a href="#console">РљРѕРЅСЃРѕР»СЊ</a>
+          <a href="#pipeline">РџР°Р№РїР»Р°Р№РЅ</a>
+          <a href="#start">РЎС‚Р°СЂС‚</a>
         </nav>
-        <button className="ghost">Запросить демо</button>
+        <button className="ghost">Р—Р°РїСЂРѕСЃРёС‚СЊ РґРµРјРѕ</button>
       </header>
 
       <section className="hero">
         <div className="hero-copy">
           <div className="eyebrow">TECHNO-CYBER AI ASSISTANT</div>
           <h1>
-            Hephaestus —
-            <span> интеллект,</span>
-            <span> который кует</span>
-            <span> решения</span>
+            Hephaestus вЂ”
+            <span> РёРЅС‚РµР»Р»РµРєС‚,</span>
+            <span> РєРѕС‚РѕСЂС‹Р№ РєСѓРµС‚</span>
+            <span> СЂРµС€РµРЅРёСЏ</span>
           </h1>
           <p>
-            Чат-ассистент нового поколения. Генерирует текст и код, анализирует
-            фото/видео/аудио, планирует задачи и подключается к вашим системам.
+            Р§Р°С‚-Р°СЃСЃРёСЃС‚РµРЅС‚ РЅРѕРІРѕРіРѕ РїРѕРєРѕР»РµРЅРёСЏ. Р“РµРЅРµСЂРёСЂСѓРµС‚ С‚РµРєСЃС‚ Рё РєРѕРґ, Р°РЅР°Р»РёР·РёСЂСѓРµС‚
+            С„РѕС‚Рѕ/РІРёРґРµРѕ/Р°СѓРґРёРѕ, РїР»Р°РЅРёСЂСѓРµС‚ Р·Р°РґР°С‡Рё Рё РїРѕРґРєР»СЋС‡Р°РµС‚СЃСЏ Рє РІР°С€РёРј СЃРёСЃС‚РµРјР°Рј.
           </p>
           <div className="hero-actions">
-            <button className="primary">Запустить прототип</button>
-            <button className="ghost">Скачать презентацию</button>
+            <button className="primary">Р—Р°РїСѓСЃС‚РёС‚СЊ РїСЂРѕС‚РѕС‚РёРї</button>
+            <button className="ghost">РЎРєР°С‡Р°С‚СЊ РїСЂРµР·РµРЅС‚Р°С†РёСЋ</button>
           </div>
           <div className="hero-stats">
             <div>
               <strong>4</strong>
-              <span>платформы</span>
+              <span>РїР»Р°С‚С„РѕСЂРјС‹</span>
             </div>
             <div>
               <strong>5+</strong>
-              <span>модулей анализа</span>
+              <span>РјРѕРґСѓР»РµР№ Р°РЅР°Р»РёР·Р°</span>
             </div>
             <div>
               <strong>?</strong>
-              <span>интеграций</span>
+              <span>РёРЅС‚РµРіСЂР°С†РёР№</span>
             </div>
           </div>
         </div>
@@ -54,11 +54,11 @@ export default function HomePage() {
             <span className="pulse">ONLINE</span>
           </div>
           <div className="panel-body">
-            <div className="panel-line">\_ анализ файлов…</div>
-            <div className="panel-line">\_ генерация кода…</div>
-            <div className="panel-line">\_ планирование…</div>
-            <div className="panel-line">\_ интеграции…</div>
-            <div className="panel-line accent">\_ Готово: 0.34s</div>
+            <div className="panel-line">\_ Р°РЅР°Р»РёР· С„Р°Р№Р»РѕРІвЂ¦</div>
+            <div className="panel-line">\_ РіРµРЅРµСЂР°С†РёСЏ РєРѕРґР°вЂ¦</div>
+            <div className="panel-line">\_ РїР»Р°РЅРёСЂРѕРІР°РЅРёРµвЂ¦</div>
+            <div className="panel-line">\_ РёРЅС‚РµРіСЂР°С†РёРёвЂ¦</div>
+            <div className="panel-line accent">\_ Р“РѕС‚РѕРІРѕ: 0.34s</div>
           </div>
           <div className="panel-footer">
             <span>Latency</span>
@@ -68,97 +68,97 @@ export default function HomePage() {
       </section>
 
       <section id="capabilities" className="section">
-        <h2>Возможности</h2>
+        <h2>Р’РѕР·РјРѕР¶РЅРѕСЃС‚Рё</h2>
         <div className="grid-3">
           <article className="card">
-            <h3>Чат и код</h3>
-            <p>Умный диалог, генерация кода, рефакторинг и объяснения.</p>
+            <h3>Р§Р°С‚ Рё РєРѕРґ</h3>
+            <p>РЈРјРЅС‹Р№ РґРёР°Р»РѕРі, РіРµРЅРµСЂР°С†РёСЏ РєРѕРґР°, СЂРµС„Р°РєС‚РѕСЂРёРЅРі Рё РѕР±СЉСЏСЃРЅРµРЅРёСЏ.</p>
           </article>
           <article className="card">
-            <h3>Файлы и медиа</h3>
-            <p>Аудио, видео, изображения — анализ, резюме, извлечение данных.</p>
+            <h3>Р¤Р°Р№Р»С‹ Рё РјРµРґРёР°</h3>
+            <p>РђСѓРґРёРѕ, РІРёРґРµРѕ, РёР·РѕР±СЂР°Р¶РµРЅРёСЏ вЂ” Р°РЅР°Р»РёР·, СЂРµР·СЋРјРµ, РёР·РІР»РµС‡РµРЅРёРµ РґР°РЅРЅС‹С….</p>
           </article>
           <article className="card">
-            <h3>Планировщик</h3>
-            <p>Задачи, привычки, сессии, напоминания и командная координация.</p>
+            <h3>РџР»Р°РЅРёСЂРѕРІС‰РёРє</h3>
+            <p>Р—Р°РґР°С‡Рё, РїСЂРёРІС‹С‡РєРё, СЃРµСЃСЃРёРё, РЅР°РїРѕРјРёРЅР°РЅРёСЏ Рё РєРѕРјР°РЅРґРЅР°СЏ РєРѕРѕСЂРґРёРЅР°С†РёСЏ.</p>
           </article>
           <article className="card">
-            <h3>Интеграции</h3>
-            <p>CRM, трекеры, почта, базы знаний и корпоративные API.</p>
+            <h3>РРЅС‚РµРіСЂР°С†РёРё</h3>
+            <p>CRM, С‚СЂРµРєРµСЂС‹, РїРѕС‡С‚Р°, Р±Р°Р·С‹ Р·РЅР°РЅРёР№ Рё РєРѕСЂРїРѕСЂР°С‚РёРІРЅС‹Рµ API.</p>
           </article>
           <article className="card">
-            <h3>Безопасность</h3>
-            <p>Модульные политики доступа, аудит, разграничение ролей.</p>
+            <h3>Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ</h3>
+            <p>РњРѕРґСѓР»СЊРЅС‹Рµ РїРѕР»РёС‚РёРєРё РґРѕСЃС‚СѓРїР°, Р°СѓРґРёС‚, СЂР°Р·РіСЂР°РЅРёС‡РµРЅРёРµ СЂРѕР»РµР№.</p>
           </article>
           <article className="card">
-            <h3>Адаптивность</h3>
-            <p>Персональные профили, динамика тональности, style-сеты.</p>
+            <h3>РђРґР°РїС‚РёРІРЅРѕСЃС‚СЊ</h3>
+            <p>РџРµСЂСЃРѕРЅР°Р»СЊРЅС‹Рµ РїСЂРѕС„РёР»Рё, РґРёРЅР°РјРёРєР° С‚РѕРЅР°Р»СЊРЅРѕСЃС‚Рё, style-СЃРµС‚С‹.</p>
           </article>
         </div>
       </section>
 
       <section id="platforms" className="section">
-        <h2>Платформы</h2>
+        <h2>РџР»Р°С‚С„РѕСЂРјС‹</h2>
         <div className="grid-3">
           <div className="platform">
             <h4>Web</h4>
-            <p>Next.js UI с живым стримингом ответов.</p>
+            <p>Next.js UI СЃ Р¶РёРІС‹Рј СЃС‚СЂРёРјРёРЅРіРѕРј РѕС‚РІРµС‚РѕРІ.</p>
           </div>
           <div className="platform">
             <h4>Desktop</h4>
-            <p>Electron с локальным кэшем и офлайн-режимом.</p>
+            <p>Electron СЃ Р»РѕРєР°Р»СЊРЅС‹Рј РєСЌС€РµРј Рё РѕС„Р»Р°Р№РЅ-СЂРµР¶РёРјРѕРј.</p>
           </div>
           <div className="platform">
             <h4>Mobile</h4>
-            <p>Flutter для iOS и Android с пушами и виджетами.</p>
+            <p>Flutter РґР»СЏ iOS Рё Android СЃ РїСѓС€Р°РјРё Рё РІРёРґР¶РµС‚Р°РјРё.</p>
           </div>
         </div>
       </section>
 
       <section id="console" className="section">
-        <h2>Консоль Hephaestus</h2>
+        <h2>РљРѕРЅСЃРѕР»СЊ Hephaestus</h2>
         <ChatPanel />
         <PlannerPanel />
       </section>
 
       <section id="pipeline" className="section">
-        <h2>Пайплайн интеллекта</h2>
+        <h2>РџР°Р№РїР»Р°Р№РЅ РёРЅС‚РµР»Р»РµРєС‚Р°</h2>
         <div className="pipeline">
           <div>
             <span>01</span>
-            <h4>Контекст</h4>
-            <p>Профили, память, знания и предпочтения.</p>
+            <h4>РљРѕРЅС‚РµРєСЃС‚</h4>
+            <p>РџСЂРѕС„РёР»Рё, РїР°РјСЏС‚СЊ, Р·РЅР°РЅРёСЏ Рё РїСЂРµРґРїРѕС‡С‚РµРЅРёСЏ.</p>
           </div>
           <div>
             <span>02</span>
-            <h4>Восприятие</h4>
-            <p>Речь, изображения, видео и документы.</p>
+            <h4>Р’РѕСЃРїСЂРёСЏС‚РёРµ</h4>
+            <p>Р РµС‡СЊ, РёР·РѕР±СЂР°Р¶РµРЅРёСЏ, РІРёРґРµРѕ Рё РґРѕРєСѓРјРµРЅС‚С‹.</p>
           </div>
           <div>
             <span>03</span>
-            <h4>Мышление</h4>
-            <p>Планирование, генерация, оценка рисков.</p>
+            <h4>РњС‹С€Р»РµРЅРёРµ</h4>
+            <p>РџР»Р°РЅРёСЂРѕРІР°РЅРёРµ, РіРµРЅРµСЂР°С†РёСЏ, РѕС†РµРЅРєР° СЂРёСЃРєРѕРІ.</p>
           </div>
           <div>
             <span>04</span>
-            <h4>Действия</h4>
-            <p>Интеграции, задачи, отчеты, автоматизация.</p>
+            <h4>Р”РµР№СЃС‚РІРёСЏ</h4>
+            <p>РРЅС‚РµРіСЂР°С†РёРё, Р·Р°РґР°С‡Рё, РѕС‚С‡РµС‚С‹, Р°РІС‚РѕРјР°С‚РёР·Р°С†РёСЏ.</p>
           </div>
         </div>
       </section>
 
       <section id="start" className="cta">
-        <h2>Готовы к запуску Hephaestus?</h2>
-        <p>Мы подготовим MVP за 4–6 недель с фокусом на вашу отрасль.</p>
+        <h2>Р“РѕС‚РѕРІС‹ Рє Р·Р°РїСѓСЃРєСѓ Hephaestus?</h2>
+        <p>РњС‹ РїРѕРґРіРѕС‚РѕРІРёРј MVP Р·Р° 4вЂ“6 РЅРµРґРµР»СЊ СЃ С„РѕРєСѓСЃРѕРј РЅР° РІР°С€Сѓ РѕС‚СЂР°СЃР»СЊ.</p>
         <div className="hero-actions">
-          <button className="primary">Получить дорожную карту</button>
-          <button className="ghost">Связаться</button>
+          <button className="primary">РџРѕР»СѓС‡РёС‚СЊ РґРѕСЂРѕР¶РЅСѓСЋ РєР°СЂС‚Сѓ</button>
+          <button className="ghost">РЎРІСЏР·Р°С‚СЊСЃСЏ</button>
         </div>
       </section>
 
       <footer className="footer">
         <span>Hephaestus AI Systems</span>
-        <span>© 2026</span>
+        <span>В© 2026</span>
       </footer>
     </main>
   );

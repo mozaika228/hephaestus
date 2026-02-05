@@ -2,7 +2,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "Hephaestus",
-  description: "Hephaestus — мультиплатформенный AI ассистент: чат, код, файлы, планирование, интеграции."
+  description: "Hephaestus вЂ” РјСѓР»СЊС‚РёРїР»Р°С‚С„РѕСЂРјРµРЅРЅС‹Р№ AI Р°СЃСЃРёСЃС‚РµРЅС‚: С‡Р°С‚, РєРѕРґ, С„Р°Р№Р»С‹, РїР»Р°РЅРёСЂРѕРІР°РЅРёРµ, РёРЅС‚РµРіСЂР°С†РёРё."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
