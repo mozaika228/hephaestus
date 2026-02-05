@@ -43,7 +43,7 @@ export default function ChatPanel() {
   ]);
   const [pending, setPending] = useState(false);
   const [file, setFile] = useState(null);
-  const [fileInfo, setFileInfo] = useState(null);
+  const [fileInfo, setFileInfo] = useState<{ id?: string; name?: string; providerFileId?: string } | null>(null);
   const [analysis, setAnalysis] = useState(null);
 
   const sendMessage = async () => {
