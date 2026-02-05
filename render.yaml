@@ -1,0 +1,58 @@
+services:
+  - type: web
+    name: hephaestus-web
+    runtime: node
+    rootDir: .
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter hephaestus-web build
+    startCommand: pnpm --filter hephaestus-web start
+    envVars:
+      - key: NEXT_PUBLIC_API_BASE
+        value: https://hephaestus-api.onrender.com
+
+  - type: web
+    name: hephaestus-api
+    runtime: docker
+    rootDir: services/api
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: HEPHAESTUS_PROVIDER
+        value: openai
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_ANALYSIS_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_TRANSCRIBE_MODEL
+        value: gpt-4o-mini-transcribe
+      - key: OPENAI_INSTRUCTIONS
+        value: ""
+      - key: AZURE_OPENAI_API_KEY
+        sync: false
+      - key: AZURE_OPENAI_ENDPOINT
+        value: ""
+      - key: AZURE_OPENAI_DEPLOYMENT
+        value: ""
+      - key: AZURE_OPENAI_API_VERSION
+        value: ""
+      - key: LOCAL_MODEL_ENDPOINT
+        value: ""
+      - key: CUSTOM_PROVIDER_ENDPOINT
+        value: ""
+      - key: CUSTOM_PROVIDER_AUTH_HEADER
+        value: "Authorization"
+      - key: CUSTOM_PROVIDER_AUTH_VALUE
+        sync: false
+      - key: AI_SERVICE_URL
+        value: https://hephaestus-ai.onrender.com
+    disk:
+      name: hephaestus-api-storage
+      mountPath: /app/storage
+      sizeGB: 10
+
+  - type: web
+    name: hephaestus-ai
+    runtime: python
+    rootDir: services/ai
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT

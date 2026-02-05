@@ -1,0 +1,12 @@
+{
+  "name": "hephaestus-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.0.2"
+  }
+}

@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  api:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ../services/api:/app
+    command: ["node", "src/index.js"]
+    ports:
+      - "4000:4000"
+  ai:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ../services/ai:/app
+    command: ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"

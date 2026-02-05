@@ -1,0 +1,12 @@
+node_modules/
+.pnpm-store/
+.turbo/
+.next/
+dist/
+build/
+coverage/
+.env
+.env.*
+.DS_Store
+Thumbs.db
+services/api/storage/

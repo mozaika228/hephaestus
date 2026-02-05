@@ -1,0 +1,13 @@
+{
+  "name": "hephaestus",
+  "private": true,
+  "packageManager": "pnpm@9.12.3",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.12"
+  }
+}

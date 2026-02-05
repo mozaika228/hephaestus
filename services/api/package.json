@@ -1,0 +1,16 @@
+{
+  "name": "hephaestus-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}
