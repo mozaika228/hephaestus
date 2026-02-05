@@ -11,9 +11,10 @@ services:
 
   - type: web
     name: hephaestus-api
-    runtime: docker
+    runtime: node
     rootDir: services/api
-    dockerfilePath: Dockerfile
+    buildCommand: npm install
+    startCommand: node src/index.js
     envVars:
       - key: HEPHAESTUS_PROVIDER
         value: openai
@@ -45,10 +46,6 @@ services:
         sync: false
       - key: AI_SERVICE_URL
         value: https://hephaestus-ai.onrender.com
-    disk:
-      name: hephaestus-api-storage
-      mountPath: /app/storage
-      sizeGB: 10
 
   - type: web
     name: hephaestus-ai
