@@ -42,7 +42,7 @@ export default function ChatPanel() {
     { role: "assistant", text: "Готов к работе. Что ковать сегодня?" }
   ]);
   const [pending, setPending] = useState(false);
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const [fileInfo, setFileInfo] = useState<{ id?: string; name?: string; providerFileId?: string } | null>(null);
   const [analysis, setAnalysis] = useState(null);
 
