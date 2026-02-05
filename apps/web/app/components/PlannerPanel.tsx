@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-export default function PlannerPanel() {
+type PlannerLabels = {
+  title: string;
+  subtitle: string;
+  placeholder: string;
+  add: string;
+  status: string;
+};
+
+export default function PlannerPanel({ labels }: { labels: PlannerLabels }) {
   const apiBase = useMemo(
     () => process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000",
     []
@@ -37,26 +45,26 @@ export default function PlannerPanel() {
   return (
     <section className="planner">
       <div className="planner-head">
-        <h3>Планировщик</h3>
-        <p>Создавай задачи и синхронизируй с интеграциями.</p>
+        <h3>{labels.title}</h3>
+        <p>{labels.subtitle}</p>
       </div>
       <div className="planner-body">
         <div className="planner-input">
           <input
-            placeholder="Новая задача"
+            placeholder={labels.placeholder}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => (e.key === "Enter" ? addTask() : null)}
           />
           <button className="primary" onClick={addTask}>
-            Добавить
+            {labels.add}
           </button>
         </div>
         <div className="planner-list">
           {tasks.map((task) => (
             <div key={task.id} className="planner-item">
               <span>{task.title}</span>
-              <span className="planner-status">{task.status}</span>
+              <span className="planner-status">{labels.status}: {task.status}</span>
             </div>
           ))}
         </div>

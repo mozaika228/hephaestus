@@ -31,7 +31,23 @@ function parseSse(buffer: string) {
   return { events, rest };
 }
 
-export default function ChatPanel() {
+type ChatPanelLabels = {
+  title: string;
+  subtitle: string;
+  placeholder: string;
+  send: string;
+  uploading: string;
+  upload: string;
+  analyze: string;
+  fileLabel: string;
+  readyMessage: string;
+  connectionError: string;
+  errorPrefix: string;
+  analysisTitle: string;
+  noData: string;
+};
+
+export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
   const apiBase = useMemo(
     () => process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000",
     []
@@ -39,7 +55,7 @@ export default function ChatPanel() {
   const [provider, setProvider] = useState("openai");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Готов к работе. Что ковать сегодня?" }
+    { role: "assistant", text: labels.readyMessage }
   ]);
   const [pending, setPending] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -84,12 +100,12 @@ export default function ChatPanel() {
             });
           }
           if (event.type === "error") {
-            setMessages((prev) => [...prev, { role: "assistant", text: `Ошибка: ${event.message}` }]);
+            setMessages((prev) => [...prev, { role: "assistant", text: `${labels.errorPrefix}: ${event.message}` }]);
           }
         }
       }
     } catch (error) {
-      setMessages((prev) => [...prev, { role: "assistant", text: "Ошибка соединения." }]);
+      setMessages((prev) => [...prev, { role: "assistant", text: labels.connectionError }]);
     } finally {
       setPending(false);
     }
@@ -127,8 +143,8 @@ export default function ChatPanel() {
     <section className="console">
       <div className="console-header">
         <div>
-          <h3>Hephaestus Console</h3>
-          <p>Чат, файлы, провайдеры.</p>
+          <h3>{labels.title}</h3>
+          <p>{labels.subtitle}</p>
         </div>
         <select value={provider} onChange={(e) => setProvider(e.target.value)}>
           {PROVIDERS.map((item) => (
@@ -149,31 +165,31 @@ export default function ChatPanel() {
         </div>
         <div className="inputs">
           <input
-            placeholder="Введите запрос..."
+            placeholder={labels.placeholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => (e.key === "Enter" ? sendMessage() : null)}
           />
           <button className="primary" onClick={sendMessage} disabled={pending}>
-            {pending ? "..." : "Отправить"}
+            {pending ? labels.uploading : labels.send}
           </button>
         </div>
         <div className="files">
           <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
           <button className="ghost" onClick={uploadFile}>
-            Загрузить файл
+            {labels.upload}
           </button>
           <button className="ghost" onClick={analyzeFile}>
-            Анализировать файл
+            {labels.analyze}
           </button>
           {fileInfo ? (
-            <span className="file-tag">Файл: {fileInfo.name}</span>
+            <span className="file-tag">{labels.fileLabel}: {fileInfo.name}</span>
           ) : null}
         </div>
         {analysis ? (
           <div className="analysis">
-            <h4>Результат анализа</h4>
-            <pre>{analysis.text || analysis.error || "Нет данных"}</pre>
+            <h4>{labels.analysisTitle}</h4>
+            <pre>{analysis.text || analysis.error || labels.noData}</pre>
           </div>
         ) : null}
       </div>

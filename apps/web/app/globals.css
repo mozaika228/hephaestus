@@ -96,6 +96,20 @@ a {
   color: var(--muted);
 }
 
+.lang {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lang-buttons {
+  display: flex;
+  gap: 6px;
+}
+
 .hero {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
