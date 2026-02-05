@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     rootDir: .
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter hephaestus-web build
+    buildCommand: corepack enable && pnpm install --no-frozen-lockfile && pnpm --filter hephaestus-web build
     startCommand: pnpm --filter hephaestus-web start
     envVars:
       - key: NEXT_PUBLIC_API_BASE
