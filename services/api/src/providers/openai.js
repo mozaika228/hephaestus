@@ -1,4 +1,5 @@
 import { formatStreamChunk, formatStreamDone, formatStreamError, pipeSse } from "./stream.js";
+import { log } from "../logger.js";
 
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/responses";
 
@@ -69,6 +70,10 @@ export async function openaiProvider({ message, res, config, stream = true, file
     const text = await response.text();
     if (stream) {
       res.write(formatStreamError(`OpenAI error: ${text}`));
+      log("error", "openai_response_not_ok", {
+        statusCode: response.status,
+        responseBody: text
+      });
       res.end(formatStreamDone());
       return;
     }
@@ -93,12 +98,15 @@ export async function openaiProvider({ message, res, config, stream = true, file
         res.write(formatStreamChunk(event.delta));
       }
       if (event.type === "response.failed") {
-        res.write(formatStreamError("OpenAI response failed."));
+        const detail = event.error?.message || event.error?.code || "unknown_error";
+        res.write(formatStreamError(`OpenAI response failed: ${detail}`));
+        log("error", "openai_response_failed_event", { event });
         res.end(formatStreamDone());
       }
     },
     onError: () => {
       res.write(formatStreamError("OpenAI stream parse error."));
+      log("error", "openai_stream_parse_error");
       res.end(formatStreamDone());
     }
   });

@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  web-build-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck Web
+        run: pnpm --filter hephaestus-web exec tsc --noEmit
+
+      - name: Build Web
+        run: pnpm --filter hephaestus-web build
+
+  api-and-ai-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check API Syntax
+        run: node --check services/api/src/index.js
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AI Dependencies
+        run: pip install -r services/ai/requirements.txt
+
+      - name: Check AI Syntax
+        run: python -m py_compile services/ai/app.py
