@@ -90,6 +90,17 @@ export async function openaiProvider({ message, res, config, stream = true, file
   await pipeSse({
     upstreamResponse: response,
     onEvent: async (event) => {
+      if (event.type === "error") {
+        const detail =
+          event.error?.message ||
+          event.message ||
+          event.code ||
+          "unknown_error";
+        res.write(formatStreamError(`OpenAI stream error: ${detail}`, "provider_error"));
+        log("error", "openai_stream_error_event", { event });
+        res.end(formatStreamDone());
+        return;
+      }
       if (event.type === "response.output_text.delta") {
         res.write(formatStreamChunk(event.delta));
       }
@@ -100,7 +111,12 @@ export async function openaiProvider({ message, res, config, stream = true, file
         res.write(formatStreamChunk(event.delta));
       }
       if (event.type === "response.failed") {
-        const detail = event.error?.message || event.error?.code || "unknown_error";
+        const detail =
+          event.error?.message ||
+          event.response?.error?.message ||
+          event.response?.error?.code ||
+          event.error?.code ||
+          "unknown_error";
         res.write(formatStreamError(`OpenAI response failed: ${detail}`, "provider_error"));
         log("error", "openai_response_failed_event", { event });
         res.end(formatStreamDone());
