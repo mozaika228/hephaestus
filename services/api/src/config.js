@@ -14,6 +14,9 @@ export function getConfig() {
     customEndpoint: process.env.CUSTOM_PROVIDER_ENDPOINT || "",
     customAuthHeader: process.env.CUSTOM_PROVIDER_AUTH_HEADER || "",
     customAuthValue: process.env.CUSTOM_PROVIDER_AUTH_VALUE || "",
-    aiServiceUrl: process.env.AI_SERVICE_URL || "http://localhost:8000"
+    aiServiceUrl: process.env.AI_SERVICE_URL || "http://localhost:8000",
+    corsAllowedOrigins: process.env.CORS_ALLOWED_ORIGINS || "*",
+    rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60000),
+    rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 120)
   };
 }

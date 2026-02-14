@@ -1,4 +1,5 @@
 import { formatStreamChunk, formatStreamDone, formatStreamError, pipeSse } from "./stream.js";
+import { normalizeProviderError } from "../http.js";
 
 function buildAzureUrl(config) {
   const base = config.azureEndpoint.replace(/\/$/, "");
@@ -44,11 +45,11 @@ function extractTextFromResponse(payload) {
 export async function azureProvider({ message, res, config, stream = true, fileId }) {
   if (!config.azureApiKey || !config.azureEndpoint || !config.azureDeployment) {
     if (stream) {
-      res.write(formatStreamError("Azure OpenAI config is missing."));
+      res.write(formatStreamError("Azure OpenAI config is missing.", "invalid_configuration"));
       res.end(formatStreamDone());
       return;
     }
-    return { ok: false, error: "Azure OpenAI config is missing." };
+    return { ok: false, code: "invalid_configuration", error: "Azure OpenAI config is missing." };
   }
 
   const body = {
@@ -68,12 +69,13 @@ export async function azureProvider({ message, res, config, stream = true, fileI
 
   if (!response.ok) {
     const text = await response.text();
+    const code = normalizeProviderError(response.status);
     if (stream) {
-      res.write(formatStreamError(`Azure OpenAI error: ${text}`));
+      res.write(formatStreamError(`Azure OpenAI error: ${text}`, code));
       res.end(formatStreamDone());
       return;
     }
-    return { ok: false, error: text };
+    return { ok: false, code, error: text };
   }
 
   if (!stream) {
@@ -91,12 +93,12 @@ export async function azureProvider({ message, res, config, stream = true, fileI
         res.end(formatStreamDone());
       }
       if (event.type === "response.failed") {
-        res.write(formatStreamError("Azure response failed."));
+        res.write(formatStreamError("Azure response failed.", "provider_error"));
         res.end(formatStreamDone());
       }
     },
     onError: () => {
-      res.write(formatStreamError("Azure stream parse error."));
+      res.write(formatStreamError("Azure stream parse error.", "provider_stream_error"));
       res.end(formatStreamDone());
     }
   });

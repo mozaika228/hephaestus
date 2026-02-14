@@ -30,5 +30,13 @@ export function validateConfig(config) {
     issues.push("CUSTOM_PROVIDER_ENDPOINT is required when HEPHAESTUS_PROVIDER=custom.");
   }
 
+  if (!Number.isFinite(config.rateLimitWindowMs) || config.rateLimitWindowMs <= 0) {
+    issues.push("RATE_LIMIT_WINDOW_MS must be a positive number.");
+  }
+
+  if (!Number.isFinite(config.rateLimitMax) || config.rateLimitMax <= 0) {
+    issues.push("RATE_LIMIT_MAX must be a positive number.");
+  }
+
   return issues;
 }

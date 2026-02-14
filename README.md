@@ -72,6 +72,9 @@ Important values:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
 - `AI_SERVICE_URL`
+- `CORS_ALLOWED_ORIGINS`
+- `RATE_LIMIT_WINDOW_MS`
+- `RATE_LIMIT_MAX`
 
 ## Deployment (Render)
 The repo includes `render.yaml` for Blueprint deployment.

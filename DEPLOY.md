@@ -24,6 +24,9 @@ This project supports Render deployment via `render.yaml`.
 - `OPENAI_API_KEY` (required for OpenAI provider)
 - `OPENAI_MODEL`
 - `AI_SERVICE_URL`
+- `CORS_ALLOWED_ORIGINS` (comma-separated allowed web origins)
+- `RATE_LIMIT_WINDOW_MS` (example: `60000`)
+- `RATE_LIMIT_MAX` (example: `120`)
 
 Optional:
 - `AZURE_OPENAI_*`

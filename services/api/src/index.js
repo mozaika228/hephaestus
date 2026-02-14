@@ -10,6 +10,7 @@ import { registerJobRoutes } from "./routes/jobs.js";
 import { getConfig } from "./config.js";
 import { validateConfig } from "./env.js";
 import { createRequestLogger, log } from "./logger.js";
+import { createRateLimiter } from "./http.js";
 
 const config = getConfig();
 const configIssues = validateConfig(config);
@@ -21,9 +22,24 @@ if (configIssues.length > 0) {
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
+const allowedOrigins = config.corsAllowedOrigins
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
 
-app.use(cors());
+const corsConfig = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error("CORS blocked"));
+  }
+};
+
+app.use(cors(corsConfig));
 app.use(createRequestLogger());
+app.use(createRateLimiter(config));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 

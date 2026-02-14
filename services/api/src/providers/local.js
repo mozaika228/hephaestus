@@ -3,11 +3,11 @@ import { formatStreamChunk, formatStreamDone, formatStreamError } from "./stream
 export async function localProvider({ message, res, config, stream = true, fileId }) {
   if (!config.localEndpoint) {
     if (stream) {
-      res.write(formatStreamError("Local model endpoint is missing."));
+      res.write(formatStreamError("Local model endpoint is missing.", "invalid_configuration"));
       res.end(formatStreamDone());
       return;
     }
-    return { ok: false, error: "Local model endpoint is missing." };
+    return { ok: false, code: "invalid_configuration", error: "Local model endpoint is missing." };
   }
 
   const response = await fetch(config.localEndpoint, {
@@ -19,11 +19,11 @@ export async function localProvider({ message, res, config, stream = true, fileI
   if (!response.ok) {
     const text = await response.text();
     if (stream) {
-      res.write(formatStreamError(`Local model error: ${text}`));
+      res.write(formatStreamError(`Local model error: ${text}`, "provider_error"));
       res.end(formatStreamDone());
       return;
     }
-    return { ok: false, error: text };
+    return { ok: false, code: "provider_error", error: text };
   }
 
   const payload = await response.json().catch(() => ({}));

@@ -1,6 +1,6 @@
  "use client";
 
- import { useState } from "react";
+ import { useEffect, useState } from "react";
  import ChatPanel from "./components/ChatPanel";
  import PlannerPanel from "./components/PlannerPanel";
  
@@ -261,9 +261,31 @@
    }
  };
  
- export default function HomePage() {
-   const [lang, setLang] = useState<Language>("en");
-   const t = copy[lang];
+export default function HomePage() {
+  const [lang, setLang] = useState<Language>("en");
+ 
+  useEffect(() => {
+    const saved = window.localStorage.getItem("hephaestus_lang");
+    if (saved === "en" || saved === "ru" || saved === "kk") {
+      setLang(saved);
+      return;
+    }
+ 
+    const browserLang = navigator.language.toLowerCase();
+    if (browserLang.startsWith("ru")) {
+      setLang("ru");
+      return;
+    }
+    if (browserLang.startsWith("kk")) {
+      setLang("kk");
+    }
+  }, []);
+ 
+  useEffect(() => {
+    window.localStorage.setItem("hephaestus_lang", lang);
+  }, [lang]);
+
+  const t = copy[lang];
  
    return (
      <main className="page">

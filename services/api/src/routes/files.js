@@ -6,6 +6,7 @@ import { createId } from "../store/ids.js";
 import { addUpload, getUpload, updateUpload } from "../store/uploads.js";
 import { getConfig } from "../config.js";
 import { analyzeFile } from "../providers/analysis.js";
+import { errorJson } from "../http.js";
 
 const storageDir = path.join(process.cwd(), "storage", "uploads");
 
@@ -43,6 +44,10 @@ async function uploadToOpenAI(file, config) {
 export function registerFileRoutes(app, upload) {
   app.post("/files/upload", (req, res) => {
     const { name, type, size } = req.body || {};
+    if (size !== undefined && (!Number.isFinite(Number(size)) || Number(size) < 0)) {
+      res.status(400).json(errorJson("invalid_request", "size must be a non-negative number."));
+      return;
+    }
     const id = createId("file");
     const record = addUpload({
       id,
@@ -64,7 +69,7 @@ export function registerFileRoutes(app, upload) {
   app.post("/files/ingest", upload.single("file"), async (req, res) => {
     const file = req.file;
     if (!file) {
-      res.status(400).json({ ok: false, error: "No file uploaded" });
+      res.status(400).json(errorJson("invalid_request", "No file uploaded."));
       return;
     }
 
@@ -100,7 +105,7 @@ export function registerFileRoutes(app, upload) {
   app.post("/files/:id/analyze", async (req, res) => {
     const record = getUpload(req.params.id);
     if (!record) {
-      res.status(404).json({ ok: false, error: "Not found" });
+      res.status(404).json(errorJson("not_found", "File not found."));
       return;
     }
 
@@ -118,7 +123,7 @@ export function registerFileRoutes(app, upload) {
   app.get("/files/:id", (req, res) => {
     const record = getUpload(req.params.id);
     if (!record) {
-      res.status(404).json({ ok: false, error: "Not found" });
+      res.status(404).json(errorJson("not_found", "File not found."));
       return;
     }
     res.json({ ok: true, file: record });
@@ -127,7 +132,7 @@ export function registerFileRoutes(app, upload) {
   app.post("/files/:id/complete", (req, res) => {
     const record = updateUpload(req.params.id, { status: "processed" });
     if (!record) {
-      res.status(404).json({ ok: false, error: "Not found" });
+      res.status(404).json(errorJson("not_found", "File not found."));
       return;
     }
     res.json({ ok: true, file: record });

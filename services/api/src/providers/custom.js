@@ -3,11 +3,11 @@ import { formatStreamChunk, formatStreamDone, formatStreamError } from "./stream
 export async function customProvider({ message, res, config, stream = true, fileId }) {
   if (!config.customEndpoint) {
     if (stream) {
-      res.write(formatStreamError("Custom provider endpoint is missing."));
+      res.write(formatStreamError("Custom provider endpoint is missing.", "invalid_configuration"));
       res.end(formatStreamDone());
       return;
     }
-    return { ok: false, error: "Custom provider endpoint is missing." };
+    return { ok: false, code: "invalid_configuration", error: "Custom provider endpoint is missing." };
   }
 
   const headers = { "Content-Type": "application/json" };
@@ -24,11 +24,11 @@ export async function customProvider({ message, res, config, stream = true, file
   if (!response.ok) {
     const text = await response.text();
     if (stream) {
-      res.write(formatStreamError(`Custom provider error: ${text}`));
+      res.write(formatStreamError(`Custom provider error: ${text}`, "provider_error"));
       res.end(formatStreamDone());
       return;
     }
-    return { ok: false, error: text };
+    return { ok: false, code: "provider_error", error: text };
   }
 
   const payload = await response.json().catch(() => ({}));

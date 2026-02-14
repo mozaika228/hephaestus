@@ -1,5 +1,6 @@
 import { formatStreamChunk, formatStreamDone, formatStreamError, pipeSse } from "./stream.js";
 import { log } from "../logger.js";
+import { normalizeProviderError } from "../http.js";
 
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/responses";
 
@@ -40,11 +41,11 @@ function extractTextFromResponse(payload) {
 export async function openaiProvider({ message, res, config, stream = true, fileId }) {
   if (!config.openaiApiKey) {
     if (stream) {
-      res.write(formatStreamError("OpenAI API key is missing."));
+      res.write(formatStreamError("OpenAI API key is missing.", "provider_auth"));
       res.end(formatStreamDone());
       return;
     }
-    return { ok: false, error: "OpenAI API key is missing." };
+    return { ok: false, code: "provider_auth", error: "OpenAI API key is missing." };
   }
 
   const body = {
@@ -68,8 +69,9 @@ export async function openaiProvider({ message, res, config, stream = true, file
 
   if (!response.ok) {
     const text = await response.text();
+    const code = normalizeProviderError(response.status);
     if (stream) {
-      res.write(formatStreamError(`OpenAI error: ${text}`));
+      res.write(formatStreamError(`OpenAI error: ${text}`, code));
       log("error", "openai_response_not_ok", {
         statusCode: response.status,
         responseBody: text
@@ -77,7 +79,7 @@ export async function openaiProvider({ message, res, config, stream = true, file
       res.end(formatStreamDone());
       return;
     }
-    return { ok: false, error: text };
+    return { ok: false, code, error: text };
   }
 
   if (!stream) {
@@ -99,13 +101,13 @@ export async function openaiProvider({ message, res, config, stream = true, file
       }
       if (event.type === "response.failed") {
         const detail = event.error?.message || event.error?.code || "unknown_error";
-        res.write(formatStreamError(`OpenAI response failed: ${detail}`));
+        res.write(formatStreamError(`OpenAI response failed: ${detail}`, "provider_error"));
         log("error", "openai_response_failed_event", { event });
         res.end(formatStreamDone());
       }
     },
     onError: () => {
-      res.write(formatStreamError("OpenAI stream parse error."));
+      res.write(formatStreamError("OpenAI stream parse error.", "provider_stream_error"));
       log("error", "openai_stream_parse_error");
       res.end(formatStreamDone());
     }

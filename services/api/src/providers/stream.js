@@ -2,8 +2,8 @@ export function formatStreamChunk(text) {
   return `data: ${JSON.stringify({ type: "delta", text })}\n\n`;
 }
 
-export function formatStreamError(message) {
-  return `data: ${JSON.stringify({ type: "error", message })}\n\n`;
+export function formatStreamError(message, code = "provider_error") {
+  return `data: ${JSON.stringify({ type: "error", code, message })}\n\n`;
 }
 
 export function formatStreamDone() {
