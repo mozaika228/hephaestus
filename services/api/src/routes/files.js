@@ -7,6 +7,7 @@ import { addUpload, getUpload, updateUpload } from "../store/uploads.js";
 import { getConfig } from "../config.js";
 import { analyzeFile } from "../providers/analysis.js";
 import { errorJson } from "../http.js";
+import { getCached, invalidateCachePrefix, setCached } from "../cache.js";
 
 const storageDir = path.join(process.cwd(), "storage", "uploads");
 
@@ -58,6 +59,7 @@ export function registerFileRoutes(app, upload) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+    invalidateCachePrefix("file:");
 
     res.json({
       ok: true,
@@ -92,6 +94,7 @@ export function registerFileRoutes(app, upload) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+    invalidateCachePrefix("file:");
 
     res.json({
       ok: true,
@@ -116,17 +119,29 @@ export function registerFileRoutes(app, upload) {
       status: result.ok ? "analyzed" : "analysis_failed",
       analysis: result
     });
+    invalidateCachePrefix(`file:${record.id}`);
 
     res.json({ ok: true, file: updated, analysis: result });
   });
 
   app.get("/files/:id", (req, res) => {
+    const key = `file:${req.params.id}`;
+    const cached = getCached(key);
+    if (cached) {
+      res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=30");
+      res.json(cached);
+      return;
+    }
+
     const record = getUpload(req.params.id);
     if (!record) {
       res.status(404).json(errorJson("not_found", "File not found."));
       return;
     }
-    res.json({ ok: true, file: record });
+    const payload = { ok: true, file: record };
+    setCached(key, payload, 5000);
+    res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=30");
+    res.json(payload);
   });
 
   app.post("/files/:id/complete", (req, res) => {
@@ -135,6 +150,7 @@ export function registerFileRoutes(app, upload) {
       res.status(404).json(errorJson("not_found", "File not found."));
       return;
     }
+    invalidateCachePrefix(`file:${req.params.id}`);
     res.json({ ok: true, file: record });
   });
 }

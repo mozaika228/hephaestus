@@ -1,13 +1,25 @@
 import { createId } from "../store/ids.js";
 import { createTask, getTask, listTasks, updateTask } from "../store/tasks.js";
 import { errorJson } from "../http.js";
+import { getCached, invalidateCachePrefix, setCached } from "../cache.js";
 
 const validTaskStatuses = new Set(["open", "in_progress", "done", "cancelled"]);
 const validPriorities = new Set(["low", "normal", "high", "urgent"]);
 
 export function registerPlannerRoutes(app) {
   app.get("/planner/tasks", (req, res) => {
-    res.json({ ok: true, tasks: listTasks() });
+    const key = "planner:list";
+    const cached = getCached(key);
+    if (cached) {
+      res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=30");
+      res.json(cached);
+      return;
+    }
+
+    const payload = { ok: true, tasks: listTasks() };
+    setCached(key, payload, 5000);
+    res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=30");
+    res.json(payload);
   });
 
   app.post("/planner/tasks", (req, res) => {
@@ -29,6 +41,7 @@ export function registerPlannerRoutes(app) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+    invalidateCachePrefix("planner:");
     res.json({ ok: true, task });
   });
 
@@ -47,6 +60,7 @@ export function registerPlannerRoutes(app) {
       res.status(404).json(errorJson("not_found", "Task not found."));
       return;
     }
+    invalidateCachePrefix("planner:");
     res.json({ ok: true, task });
   });
 

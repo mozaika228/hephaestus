@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 const PROVIDERS = [
   { id: "openai", label: "OpenAI" },
@@ -61,6 +61,30 @@ export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
   const [file, setFile] = useState<File | null>(null);
   const [fileInfo, setFileInfo] = useState<{ id?: string; name?: string; providerFileId?: string } | null>(null);
   const [analysis, setAnalysis] = useState<{ text?: string; error?: string } | null>(null);
+  const streamBufferRef = useRef("");
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushAssistantBuffer = () => {
+    const delta = streamBufferRef.current;
+    if (!delta) return;
+    streamBufferRef.current = "";
+    setMessages((prev) => {
+      const next = [...prev];
+      const last = next[next.length - 1];
+      if (last?.role === "assistant") {
+        last.text += delta;
+      }
+      return next;
+    });
+  };
+
+  const scheduleFlush = () => {
+    if (flushTimerRef.current) return;
+    flushTimerRef.current = setTimeout(() => {
+      flushTimerRef.current = null;
+      flushAssistantBuffer();
+    }, 60);
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || pending) return;
@@ -90,21 +114,30 @@ export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
         buffer = rest;
         for (const event of events) {
           if (event.type === "delta") {
-            setMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last?.role === "assistant") {
-                last.text += event.text;
-              }
-              return next;
-            });
+            streamBufferRef.current += event.text || "";
+            scheduleFlush();
           }
           if (event.type === "error") {
+            if (flushTimerRef.current) {
+              clearTimeout(flushTimerRef.current);
+              flushTimerRef.current = null;
+            }
+            flushAssistantBuffer();
             setMessages((prev) => [...prev, { role: "assistant", text: `${labels.errorPrefix}: ${event.message}` }]);
           }
         }
       }
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      flushAssistantBuffer();
     } catch (error) {
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+      flushAssistantBuffer();
       setMessages((prev) => [...prev, { role: "assistant", text: labels.connectionError }]);
     } finally {
       setPending(false);

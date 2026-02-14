@@ -38,8 +38,16 @@ const corsConfig = {
 };
 
 app.use(cors(corsConfig));
+app.disable("x-powered-by");
 app.use(createRequestLogger());
 app.use(createRateLimiter(config));
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("X-DNS-Prefetch-Control", "on");
+  next();
+});
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 

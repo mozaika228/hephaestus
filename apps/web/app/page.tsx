@@ -1,8 +1,10 @@
  "use client";
 
  import { useEffect, useState } from "react";
- import ChatPanel from "./components/ChatPanel";
- import PlannerPanel from "./components/PlannerPanel";
+ import dynamic from "next/dynamic";
+ 
+ const ChatPanel = dynamic(() => import("./components/ChatPanel"), { ssr: false });
+ const PlannerPanel = dynamic(() => import("./components/PlannerPanel"), { ssr: false });
  
  type Language = "en" | "ru" | "kk";
  
