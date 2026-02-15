@@ -2,6 +2,9 @@ import { getProvider } from "../providers/index.js";
 import { getConfig } from "../config.js";
 import { formatStreamError, formatStreamDone } from "../providers/stream.js";
 import { errorJson } from "../http.js";
+import { routeIntent } from "../logic/router.js";
+import { resolveProviderPolicy } from "../logic/policy.js";
+import { log } from "../logger.js";
 
 const validProviders = new Set(["openai", "azure", "local", "custom"]);
 
@@ -36,8 +39,30 @@ export function registerChatRoutes(app) {
     }
 
     const { message, provider, fileId } = parsed.value;
-    const config = { ...getConfig(), provider: provider || getConfig().provider };
+    const baseConfig = getConfig();
+    const route = routeIntent({ message, fileId });
+    const policy = resolveProviderPolicy({
+      config: baseConfig,
+      intent: route.intent,
+      requestedProvider: provider
+    });
+
+    if (policy.availableProviders.length === 0) {
+      res.write(formatStreamError("invalid_configuration: No provider is configured.", "invalid_configuration"));
+      res.end(formatStreamDone());
+      return;
+    }
+
+    const config = { ...baseConfig, provider: policy.provider };
     const providerFn = getProvider(config);
+    log("info", "chat_logic_decision", {
+      requestId: req.requestId,
+      routeIntent: route.intent,
+      routeReason: route.reason,
+      selectedProvider: policy.provider,
+      policyReason: policy.reason,
+      fallbackProviders: policy.fallbackProviders
+    });
 
     try {
       await providerFn({ message, res, config, stream: true, fileId });
@@ -55,18 +80,51 @@ export function registerChatRoutes(app) {
     }
 
     const { message, provider, fileId } = parsed.value;
-    const config = { ...getConfig(), provider: provider || getConfig().provider };
-    const providerFn = getProvider(config);
+    const baseConfig = getConfig();
+    const route = routeIntent({ message, fileId });
+    const policy = resolveProviderPolicy({
+      config: baseConfig,
+      intent: route.intent,
+      requestedProvider: provider
+    });
+
+    if (policy.availableProviders.length === 0) {
+      res.status(503).json(errorJson("invalid_configuration", "No provider is configured."));
+      return;
+    }
+
+    const tryOrder = [policy.provider, ...policy.fallbackProviders];
+    log("info", "chat_logic_decision", {
+      requestId: req.requestId,
+      routeIntent: route.intent,
+      routeReason: route.reason,
+      selectedProvider: policy.provider,
+      policyReason: policy.reason,
+      fallbackProviders: policy.fallbackProviders
+    });
 
     try {
-      const result = await providerFn({ message, res, config, stream: false, fileId });
-      if (result?.ok === false) {
-        res.status(400).json(
-          errorJson(result.code || "provider_error", result.error || "Provider request failed.")
-        );
-        return;
+      for (const candidate of tryOrder) {
+        const config = { ...baseConfig, provider: candidate };
+        const providerFn = getProvider(config);
+        const result = await providerFn({ message, res, config, stream: false, fileId });
+
+        if (result?.ok !== false) {
+          res.json({ ok: true, text: result?.text || "", provider: candidate });
+          return;
+        }
+
+        const retryable = result.code === "provider_rate_limit" || result.code === "provider_unavailable";
+        if (!retryable) {
+          res.status(400).json(
+            errorJson(result.code || "provider_error", result.error || "Provider request failed.", {
+              provider: candidate
+            })
+          );
+          return;
+        }
       }
-      res.json({ ok: true, text: result?.text || "" });
+      res.status(503).json(errorJson("provider_unavailable", "All providers failed for this request."));
     } catch (error) {
       res.status(500).json(errorJson("internal_error", "Chat request failed."));
     }

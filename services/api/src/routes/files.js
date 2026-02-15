@@ -8,6 +8,9 @@ import { getConfig } from "../config.js";
 import { analyzeFile } from "../providers/analysis.js";
 import { errorJson } from "../http.js";
 import { getCached, invalidateCachePrefix, setCached } from "../cache.js";
+import { routeFileIntent } from "../logic/router.js";
+import { resolveProviderPolicy } from "../logic/policy.js";
+import { log } from "../logger.js";
 
 const storageDir = path.join(process.cwd(), "storage", "uploads");
 
@@ -112,7 +115,29 @@ export function registerFileRoutes(app, upload) {
       return;
     }
 
-    const config = getConfig();
+    const baseConfig = getConfig();
+    const route = routeFileIntent({ mime: record.type || "" });
+    const policy = resolveProviderPolicy({
+      config: baseConfig,
+      intent: route.intent
+    });
+
+    if (policy.availableProviders.length === 0) {
+      res.status(503).json(errorJson("invalid_configuration", "No provider is configured."));
+      return;
+    }
+
+    const config = { ...baseConfig, provider: policy.provider };
+    log("info", "file_logic_decision", {
+      requestId: req.requestId,
+      fileId: record.id,
+      mime: record.type,
+      routeIntent: route.intent,
+      routeReason: route.reason,
+      selectedProvider: policy.provider,
+      policyReason: policy.reason,
+      fallbackProviders: policy.fallbackProviders
+    });
     const result = await analyzeFile({ record, config });
 
     const updated = updateUpload(record.id, {
