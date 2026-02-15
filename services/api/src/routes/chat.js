@@ -2,8 +2,7 @@ import { getProvider } from "../providers/index.js";
 import { getConfig } from "../config.js";
 import { formatStreamError, formatStreamDone } from "../providers/stream.js";
 import { errorJson } from "../http.js";
-import { routeIntent } from "../logic/router.js";
-import { resolveProviderPolicy } from "../logic/policy.js";
+import { resolveChatDecision } from "../logic/aiLogicClient.js";
 import { log } from "../logger.js";
 
 const validProviders = new Set(["openai", "azure", "local", "custom"]);
@@ -40,12 +39,14 @@ export function registerChatRoutes(app) {
 
     const { message, provider, fileId } = parsed.value;
     const baseConfig = getConfig();
-    const route = routeIntent({ message, fileId });
-    const policy = resolveProviderPolicy({
+    const decision = await resolveChatDecision({
       config: baseConfig,
-      intent: route.intent,
+      message,
+      fileId,
       requestedProvider: provider
     });
+    const route = decision.route;
+    const policy = decision.policy;
 
     if (policy.availableProviders.length === 0) {
       res.write(formatStreamError("invalid_configuration: No provider is configured.", "invalid_configuration"));
@@ -61,6 +62,7 @@ export function registerChatRoutes(app) {
       routeReason: route.reason,
       selectedProvider: policy.provider,
       policyReason: policy.reason,
+      logicSource: decision.source,
       fallbackProviders: policy.fallbackProviders
     });
 
@@ -81,12 +83,14 @@ export function registerChatRoutes(app) {
 
     const { message, provider, fileId } = parsed.value;
     const baseConfig = getConfig();
-    const route = routeIntent({ message, fileId });
-    const policy = resolveProviderPolicy({
+    const decision = await resolveChatDecision({
       config: baseConfig,
-      intent: route.intent,
+      message,
+      fileId,
       requestedProvider: provider
     });
+    const route = decision.route;
+    const policy = decision.policy;
 
     if (policy.availableProviders.length === 0) {
       res.status(503).json(errorJson("invalid_configuration", "No provider is configured."));
@@ -100,6 +104,7 @@ export function registerChatRoutes(app) {
       routeReason: route.reason,
       selectedProvider: policy.provider,
       policyReason: policy.reason,
+      logicSource: decision.source,
       fallbackProviders: policy.fallbackProviders
     });
 
