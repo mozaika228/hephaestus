@@ -6,6 +6,7 @@ FastAPI-based multi-agent orchestration service with:
 - dynamic sub-agent planning trigger for long context
 - verifiable hash chain per step
 - PostgreSQL persistence for runs and steps
+- Hybrid retrieval: keyword + semantic search with pgvector (memory fallback when DB is absent)
 - Tool registry with retry and circuit-breaker (`web_search`, `kb_search`, `http_fetch`, `code_exec_sandboxed`)
 
 ## Run locally
@@ -27,3 +28,5 @@ uvicorn app:app --host 0.0.0.0 --port 8100
 ## Endpoints
 - `GET /health`
 - `POST /v1/graph/run`
+- `POST /v1/knowledge/ingest`
+- `POST /v1/knowledge/search`

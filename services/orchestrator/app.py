@@ -4,7 +4,9 @@ import ast
 import datetime as dt
 import hashlib
 import json
+import math
 import os
+import re
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TypedDict
@@ -24,6 +26,19 @@ class GraphRunRequest(BaseModel):
     prompt: str = Field(min_length=1)
     session_id: Optional[str] = None
     metadata: Dict[str, Any] = {}
+
+
+class KnowledgeIngestRequest(BaseModel):
+    content: str = Field(min_length=1)
+    document_id: Optional[str] = None
+    metadata: Dict[str, Any] = {}
+    chunk_size: int = Field(default=700, ge=100, le=2000)
+    chunk_overlap: int = Field(default=120, ge=0, le=500)
+
+
+class KnowledgeSearchRequest(BaseModel):
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
 
 
 class OrchestratorState(TypedDict):
@@ -54,6 +69,8 @@ MAX_SUBAGENT_CHILDREN = int(os.getenv("ORCH_MAX_SUBAGENT_CHILDREN", "4"))
 MAX_EXECUTION_ATTEMPTS = int(os.getenv("ORCH_TOOL_MAX_RETRIES", "2"))
 CIRCUIT_FAIL_THRESHOLD = int(os.getenv("ORCH_CIRCUIT_FAIL_THRESHOLD", "3"))
 CIRCUIT_RESET_SECONDS = int(os.getenv("ORCH_CIRCUIT_RESET_SECONDS", "60"))
+EMBEDDING_DIM = 384
+MEMORY_KNOWLEDGE: List[Dict[str, Any]] = []
 
 
 def now_iso() -> str:
@@ -117,6 +134,32 @@ def init_db():
                 );
                 """
             )
+            try:
+                cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+            except Exception:
+                pass
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS knowledge_chunks (
+                  id TEXT PRIMARY KEY,
+                  document_id TEXT NOT NULL,
+                  chunk_index INTEGER NOT NULL,
+                  content TEXT NOT NULL,
+                  embedding vector(384),
+                  metadata JSONB NOT NULL,
+                  created_at TIMESTAMPTZ NOT NULL
+                );
+                """
+            )
+            try:
+                cur.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_embedding ON knowledge_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);"
+                )
+            except Exception:
+                pass
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_keyword ON knowledge_chunks USING GIN (to_tsvector('simple', content));"
+            )
 
 
 def persist_run(state: OrchestratorState):
@@ -157,6 +200,196 @@ def persist_run(state: OrchestratorState):
                         step["created_at"],
                     ),
                 )
+
+
+def tokenize(text: str) -> List[str]:
+    return re.findall(r"[a-zA-Z0-9_]+", text.lower())
+
+
+def embed_text(text: str) -> List[float]:
+    vec = [0.0] * EMBEDDING_DIM
+    tokens = tokenize(text)
+    if not tokens:
+        return vec
+    for tok in tokens:
+        digest = hashlib.sha256(tok.encode("utf-8")).digest()
+        idx = int.from_bytes(digest[:4], "big") % EMBEDDING_DIM
+        sign = 1.0 if digest[4] % 2 == 0 else -1.0
+        magnitude = 1.0 + (digest[5] / 255.0)
+        vec[idx] += sign * magnitude
+    norm = math.sqrt(sum(x * x for x in vec))
+    if norm == 0:
+        return vec
+    return [x / norm for x in vec]
+
+
+def cosine_similarity(a: List[float], b: List[float]) -> float:
+    if len(a) != len(b):
+        return 0.0
+    return sum(x * y for x, y in zip(a, b))
+
+
+def vector_literal(vec: List[float]) -> str:
+    return "[" + ",".join(f"{x:.6f}" for x in vec) + "]"
+
+
+def split_chunks(text: str, chunk_size: int, overlap: int) -> List[str]:
+    words = text.split()
+    if not words:
+        return []
+    chunks: List[str] = []
+    start = 0
+    step = max(1, chunk_size - overlap)
+    while start < len(words):
+        end = min(len(words), start + chunk_size)
+        chunks.append(" ".join(words[start:end]))
+        if end >= len(words):
+            break
+        start += step
+    return chunks
+
+
+def ingest_document_chunks(
+    content: str,
+    document_id: str,
+    metadata: Dict[str, Any],
+    chunk_size: int,
+    chunk_overlap: int,
+) -> Dict[str, Any]:
+    chunks = split_chunks(content, chunk_size, chunk_overlap)
+    if not chunks:
+        return {"document_id": document_id, "ingested": 0, "backend": "none"}
+
+    conn = get_conn()
+    created_ids: List[str] = []
+
+    if conn is None:
+        for idx, chunk in enumerate(chunks):
+            chunk_id = f"chunk_{uuid4()}"
+            MEMORY_KNOWLEDGE.append(
+                {
+                    "id": chunk_id,
+                    "document_id": document_id,
+                    "chunk_index": idx,
+                    "content": chunk,
+                    "metadata": metadata,
+                    "embedding": embed_text(chunk),
+                    "created_at": now_iso(),
+                }
+            )
+            created_ids.append(chunk_id)
+        return {"document_id": document_id, "ingested": len(created_ids), "backend": "memory"}
+
+    with conn:
+        with conn.cursor() as cur:
+            for idx, chunk in enumerate(chunks):
+                chunk_id = f"chunk_{uuid4()}"
+                cur.execute(
+                    """
+                    INSERT INTO knowledge_chunks (id, document_id, chunk_index, content, embedding, metadata, created_at)
+                    VALUES (%s, %s, %s, %s, %s::vector, %s::jsonb, %s)
+                    """,
+                    (
+                        chunk_id,
+                        document_id,
+                        idx,
+                        chunk,
+                        vector_literal(embed_text(chunk)),
+                        json.dumps(metadata),
+                        now_iso(),
+                    ),
+                )
+                created_ids.append(chunk_id)
+    return {"document_id": document_id, "ingested": len(created_ids), "backend": "postgres"}
+
+
+def hybrid_search(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    conn = get_conn()
+    query_embedding = embed_text(query)
+
+    if conn is None:
+        semantic = sorted(
+            MEMORY_KNOWLEDGE,
+            key=lambda item: cosine_similarity(query_embedding, item["embedding"]),
+            reverse=True,
+        )[:top_k]
+        keyword_tokens = set(tokenize(query))
+
+        def kw_score(item: Dict[str, Any]) -> int:
+            words = tokenize(item["content"])
+            return sum(1 for word in words if word in keyword_tokens)
+
+        keyword = sorted(MEMORY_KNOWLEDGE, key=kw_score, reverse=True)[:top_k]
+        return fuse_results(semantic, keyword, top_k)
+
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, document_id, chunk_index, content, metadata, (1 - (embedding <=> %s::vector)) AS score
+                FROM knowledge_chunks
+                ORDER BY embedding <=> %s::vector
+                LIMIT %s
+                """,
+                (vector_literal(query_embedding), vector_literal(query_embedding), top_k),
+            )
+            semantic_rows = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT id, document_id, chunk_index, content, metadata,
+                       ts_rank_cd(to_tsvector('simple', content), plainto_tsquery('simple', %s)) AS score
+                FROM knowledge_chunks
+                WHERE to_tsvector('simple', content) @@ plainto_tsquery('simple', %s)
+                ORDER BY score DESC
+                LIMIT %s
+                """,
+                (query, query, top_k),
+            )
+            keyword_rows = cur.fetchall()
+
+    semantic = [
+        {
+            "id": row[0],
+            "document_id": row[1],
+            "chunk_index": row[2],
+            "content": row[3],
+            "metadata": row[4] or {},
+            "score": float(row[5] or 0.0),
+        }
+        for row in semantic_rows
+    ]
+    keyword = [
+        {
+            "id": row[0],
+            "document_id": row[1],
+            "chunk_index": row[2],
+            "content": row[3],
+            "metadata": row[4] or {},
+            "score": float(row[5] or 0.0),
+        }
+        for row in keyword_rows
+    ]
+    return fuse_results(semantic, keyword, top_k)
+
+
+def fuse_results(semantic: List[Dict[str, Any]], keyword: List[Dict[str, Any]], top_k: int) -> List[Dict[str, Any]]:
+    rrf_scores: Dict[str, float] = {}
+    items: Dict[str, Dict[str, Any]] = {}
+    k = 60.0
+
+    for rank, item in enumerate(semantic, start=1):
+        item_id = item["id"]
+        items[item_id] = item
+        rrf_scores[item_id] = rrf_scores.get(item_id, 0.0) + 1.0 / (k + rank)
+
+    for rank, item in enumerate(keyword, start=1):
+        item_id = item["id"]
+        items[item_id] = item
+        rrf_scores[item_id] = rrf_scores.get(item_id, 0.0) + 1.0 / (k + rank)
+
+    ranked = sorted(rrf_scores.items(), key=lambda kv: kv[1], reverse=True)[:top_k]
+    return [{**items[item_id], "hybrid_score": score} for item_id, score in ranked]
 
 
 @dataclass
@@ -229,11 +462,15 @@ def tool_web_search(args: Dict[str, Any]) -> Dict[str, Any]:
 
 def tool_kb_search(args: Dict[str, Any]) -> Dict[str, Any]:
     query = str(args.get("query", "")).strip()
+    top_k = int(args.get("top_k", 5))
+    if not query:
+        raise ValueError("query is required")
+    results = hybrid_search(query, top_k=top_k)
     return {
         "tool": "kb_search",
         "status": "ok",
-        "result": f"KB search completed for: {query}",
-        "chunks": [],
+        "result": f"KB search completed for: {query}. Found {len(results)} chunks.",
+        "chunks": results,
     }
 
 
@@ -434,12 +671,33 @@ def on_startup():
 
 @app.get("/health")
 def health():
+    kb_backend = "postgres" if bool(os.getenv("DATABASE_URL", "")) else "memory"
     return {
         "status": "ok",
         "service": "orchestrator",
         "db_configured": bool(os.getenv("DATABASE_URL", "")),
         "langgraph": "enabled",
+        "knowledge_backend": kb_backend,
     }
+
+
+@app.post("/v1/knowledge/ingest")
+def knowledge_ingest(req: KnowledgeIngestRequest):
+    document_id = req.document_id or f"doc_{uuid4()}"
+    result = ingest_document_chunks(
+        content=req.content,
+        document_id=document_id,
+        metadata=req.metadata,
+        chunk_size=req.chunk_size,
+        chunk_overlap=req.chunk_overlap,
+    )
+    return {"ok": True, **result}
+
+
+@app.post("/v1/knowledge/search")
+def knowledge_search(req: KnowledgeSearchRequest):
+    results = hybrid_search(req.query, req.top_k)
+    return {"ok": True, "query": req.query, "results": results, "count": len(results)}
 
 
 @app.post("/v1/graph/run")
