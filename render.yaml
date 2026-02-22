@@ -34,22 +34,8 @@ services:
         value: gpt-4o-mini-transcribe
       - key: OPENAI_INSTRUCTIONS
         value: ""
-      - key: AZURE_OPENAI_API_KEY
-        sync: false
-      - key: AZURE_OPENAI_ENDPOINT
+      - key: OLLAMA_BASE_URL
         value: ""
-      - key: AZURE_OPENAI_DEPLOYMENT
-        value: ""
-      - key: AZURE_OPENAI_API_VERSION
-        value: ""
-      - key: LOCAL_MODEL_ENDPOINT
-        value: ""
-      - key: CUSTOM_PROVIDER_ENDPOINT
-        value: ""
-      - key: CUSTOM_PROVIDER_AUTH_HEADER
-        value: "Authorization"
-      - key: CUSTOM_PROVIDER_AUTH_VALUE
-        sync: false
       - key: AI_SERVICE_URL
         value: https://hephaestus-ai.onrender.com
       - key: ORCHESTRATOR_URL

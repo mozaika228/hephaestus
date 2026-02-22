@@ -79,7 +79,7 @@ export function startServer() {
       port: Number(port),
       provider: config.provider,
       openaiModel: config.openaiModel || "",
-      azureDeployment: config.azureDeployment || "",
+      ollamaEndpoint: config.ollamaEndpoint || "",
       aiServiceUrl: config.aiServiceUrl,
       orchestratorUrl: config.orchestratorUrl,
       dbPath: config.dbPath || ""

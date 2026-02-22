@@ -13,7 +13,7 @@ import requests
 app = FastAPI(title="Hephaestus AI Service")
 
 JOBS = {}
-KNOWN_PROVIDERS = ["openai", "azure", "local", "custom"]
+KNOWN_PROVIDERS = ["openai", "ollama"]
 INTENTS: Dict[str, List[str]] = {
     "chat": ["hello", "hi", "privet", "zdarova", "salam"],
     "code": ["code", "bug", "refactor", "function", "api"],
@@ -22,15 +22,15 @@ INTENTS: Dict[str, List[str]] = {
     "file_analysis": ["file", "image", "audio", "video", "analyze"]
 }
 INTENT_PREFERENCE = {
-    "chat": ["openai", "azure", "local", "custom"],
-    "code": ["openai", "azure", "local", "custom"],
-    "planner": ["openai", "azure", "local", "custom"],
-    "integration": ["custom", "openai", "azure", "local"],
-    "file_analysis": ["openai", "azure", "custom", "local"],
-    "file_analysis_image": ["openai", "azure", "custom", "local"],
-    "file_analysis_audio": ["openai", "azure"],
-    "file_analysis_video": ["openai", "azure", "custom"],
-    "file_analysis_document": ["openai", "azure", "custom", "local"]
+    "chat": ["openai", "ollama"],
+    "code": ["openai", "ollama"],
+    "planner": ["openai", "ollama"],
+    "integration": ["openai", "ollama"],
+    "file_analysis": ["openai", "ollama"],
+    "file_analysis_image": ["openai", "ollama"],
+    "file_analysis_audio": ["openai"],
+    "file_analysis_video": ["openai", "ollama"],
+    "file_analysis_document": ["openai", "ollama"]
 }
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
@@ -39,9 +39,7 @@ OPENAI_TRANSCRIPTIONS_URL = "https://api.openai.com/v1/audio/transcriptions"
 
 class LogicProviders(BaseModel):
     openaiConfigured: bool = False
-    azureConfigured: bool = False
-    localConfigured: bool = False
-    customConfigured: bool = False
+    ollamaConfigured: bool = False
 
 
 class LogicDecisionRequest(BaseModel):
@@ -71,14 +69,7 @@ class AnalyzeConfig(BaseModel):
     openaiAnalysisModel: Optional[str] = ""
     openaiTranscribeModel: Optional[str] = "gpt-4o-mini-transcribe"
     instructions: Optional[str] = ""
-    azureApiKey: Optional[str] = ""
-    azureEndpoint: Optional[str] = ""
-    azureDeployment: Optional[str] = ""
-    azureApiVersion: Optional[str] = ""
-    localEndpoint: Optional[str] = ""
-    customEndpoint: Optional[str] = ""
-    customAuthHeader: Optional[str] = ""
-    customAuthValue: Optional[str] = ""
+    ollamaEndpoint: Optional[str] = ""
 
 
 class AnalyzeRequest(BaseModel):
@@ -143,12 +134,8 @@ def _get_available_providers(providers: LogicProviders):
     available = []
     if providers.openaiConfigured:
         available.append("openai")
-    if providers.azureConfigured:
-        available.append("azure")
-    if providers.localConfigured:
-        available.append("local")
-    if providers.customConfigured:
-        available.append("custom")
+    if providers.ollamaConfigured:
+        available.append("ollama")
     return available
 
 
@@ -224,35 +211,33 @@ def _openai_responses(config: AnalyzeConfig, input_payload: List[Dict[str, Any]]
     return {"ok": True, "text": _extract_text_from_response(payload), "raw": payload}
 
 
-def _azure_responses(config: AnalyzeConfig, input_payload: List[Dict[str, Any]], instructions: Optional[str] = None):
-    if not config.azureApiKey or not config.azureEndpoint or not config.azureDeployment:
-        return {"ok": False, "error": "Azure OpenAI config is incomplete."}
+def _ollama_responses(config: AnalyzeConfig, input_payload: List[Dict[str, Any]], instructions: Optional[str] = None):
+    if not config.ollamaEndpoint:
+        return {"ok": False, "error": "Ollama endpoint is missing."}
 
-    base = config.azureEndpoint.rstrip("/")
-    path_url = f"{base}/openai/v1/responses"
-    url = f"{path_url}?api-version={config.azureApiVersion}" if config.azureApiVersion else path_url
+    prompt_text = instructions or config.instructions or "You are a helpful AI assistant."
+    prompt_text += "\n\nInput:\n" + json.dumps(input_payload, ensure_ascii=False)
 
-    body = {
-        "model": config.azureDeployment,
-        "input": input_payload,
-        "instructions": instructions or config.instructions or "",
-        "stream": False
-    }
-    headers = {
-        "api-key": config.azureApiKey,
-        "Content-Type": "application/json"
-    }
-    resp = requests.post(url, headers=headers, json=body, timeout=45)
+    resp = requests.post(
+        config.ollamaEndpoint.rstrip("/") + "/api/generate",
+        headers={"Content-Type": "application/json"},
+        json={
+            "model": os.getenv("OLLAMA_MODEL", "llama3.1"),
+            "prompt": prompt_text,
+            "stream": False
+        },
+        timeout=60
+    )
     if not resp.ok:
         return {"ok": False, "error": resp.text}
     payload = resp.json()
-    return {"ok": True, "text": _extract_text_from_response(payload), "raw": payload}
+    return {"ok": True, "text": payload.get("response", ""), "raw": payload}
 
 
 def _analyze_with_provider(config: AnalyzeConfig, input_payload: List[Dict[str, Any]], instructions: Optional[str] = None):
     provider = (config.provider or "openai").lower()
-    if provider == "azure":
-        return _azure_responses(config, input_payload, instructions)
+    if provider == "ollama":
+        return _ollama_responses(config, input_payload, instructions)
     if provider == "openai":
         return _openai_responses(config, input_payload, instructions)
     return {"ok": False, "error": "Provider does not support analysis yet."}

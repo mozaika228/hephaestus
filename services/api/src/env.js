@@ -14,24 +14,12 @@ export function validateConfig(config) {
     issues.push("OPENAI_API_KEY is required when HEPHAESTUS_PROVIDER=openai.");
   }
 
-  if (provider === "azure") {
-    if (!config.azureApiKey) {
-      issues.push("AZURE_OPENAI_API_KEY is required when HEPHAESTUS_PROVIDER=azure.");
-    }
-    if (!config.azureEndpoint) {
-      issues.push("AZURE_OPENAI_ENDPOINT is required when HEPHAESTUS_PROVIDER=azure.");
-    }
-    if (!config.azureDeployment) {
-      issues.push("AZURE_OPENAI_DEPLOYMENT is required when HEPHAESTUS_PROVIDER=azure.");
-    }
+  if (provider === "ollama" && !config.ollamaEndpoint) {
+    issues.push("OLLAMA_BASE_URL is required when HEPHAESTUS_PROVIDER=ollama.");
   }
 
-  if (provider === "local" && !config.localEndpoint) {
-    issues.push("LOCAL_MODEL_ENDPOINT is required when HEPHAESTUS_PROVIDER=local.");
-  }
-
-  if (provider === "custom" && !config.customEndpoint) {
-    issues.push("CUSTOM_PROVIDER_ENDPOINT is required when HEPHAESTUS_PROVIDER=custom.");
+  if (provider !== "openai" && provider !== "ollama") {
+    issues.push("HEPHAESTUS_PROVIDER must be either openai or ollama.");
   }
 
   if (!Number.isFinite(config.rateLimitWindowMs) || config.rateLimitWindowMs <= 0) {

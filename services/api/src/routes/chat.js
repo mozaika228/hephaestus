@@ -5,7 +5,7 @@ import { errorJson } from "../http.js";
 import { resolveChatDecision } from "../logic/aiLogicClient.js";
 import { log } from "../logger.js";
 
-const validProviders = new Set(["openai", "azure", "local", "custom"]);
+const validProviders = new Set(["openai", "ollama"]);
 
 function validateChatBody(body) {
   const payload = body || {};

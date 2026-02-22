@@ -15,14 +15,7 @@ function buildAnalyzePayload({ record, config }) {
       openaiAnalysisModel: config.openaiAnalysisModel || "",
       openaiTranscribeModel: config.openaiTranscribeModel || "gpt-4o-mini-transcribe",
       instructions: config.instructions || "",
-      azureApiKey: config.azureApiKey || "",
-      azureEndpoint: config.azureEndpoint || "",
-      azureDeployment: config.azureDeployment || "",
-      azureApiVersion: config.azureApiVersion || "",
-      localEndpoint: config.localEndpoint || "",
-      customEndpoint: config.customEndpoint || "",
-      customAuthHeader: config.customAuthHeader || "",
-      customAuthValue: config.customAuthValue || ""
+      ollamaEndpoint: config.ollamaEndpoint || ""
     }
   };
 }

@@ -1,24 +1,22 @@
-const knownProviders = ["openai", "azure", "local", "custom"];
+const knownProviders = ["openai", "ollama"];
 
 const intentPreference = {
-  chat: ["openai", "azure", "local", "custom"],
-  code: ["openai", "azure", "local", "custom"],
-  planner: ["openai", "azure", "local", "custom"],
-  integration: ["custom", "openai", "azure", "local"],
-  file_analysis: ["openai", "azure", "custom", "local"],
-  file_analysis_image: ["openai", "azure", "custom", "local"],
-  file_analysis_audio: ["openai", "azure"],
-  file_analysis_video: ["openai", "azure", "custom"],
-  file_analysis_document: ["openai", "azure", "custom", "local"]
+  chat: ["openai", "ollama"],
+  code: ["openai", "ollama"],
+  planner: ["openai", "ollama"],
+  integration: ["openai", "ollama"],
+  file_analysis: ["openai", "ollama"],
+  file_analysis_image: ["openai", "ollama"],
+  file_analysis_audio: ["openai"],
+  file_analysis_video: ["openai", "ollama"],
+  file_analysis_document: ["openai", "ollama"]
 };
 
 function getAvailableProviders(config) {
   const available = [];
 
   if (config.openaiApiKey) available.push("openai");
-  if (config.azureApiKey && config.azureEndpoint && config.azureDeployment) available.push("azure");
-  if (config.localEndpoint) available.push("local");
-  if (config.customEndpoint) available.push("custom");
+  if (config.ollamaEndpoint) available.push("ollama");
 
   return available;
 }

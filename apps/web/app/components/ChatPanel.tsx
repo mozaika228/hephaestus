@@ -4,9 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 const PROVIDERS = [
   { id: "openai", label: "OpenAI" },
-  { id: "azure", label: "Azure OpenAI" },
-  { id: "local", label: "Local" },
-  { id: "custom", label: "Custom" }
+  { id: "ollama", label: "Ollama" }
 ];
 
 function parseSse(buffer: string) {

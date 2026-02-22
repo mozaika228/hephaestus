@@ -6,9 +6,7 @@ const LOGIC_TIMEOUT_MS = 1800;
 function providerFlags(config) {
   return {
     openaiConfigured: Boolean(config.openaiApiKey),
-    azureConfigured: Boolean(config.azureApiKey && config.azureEndpoint && config.azureDeployment),
-    localConfigured: Boolean(config.localEndpoint),
-    customConfigured: Boolean(config.customEndpoint)
+    ollamaConfigured: Boolean(config.ollamaEndpoint)
   };
 }
 

@@ -35,9 +35,7 @@ This project supports Render deployment via `render.yaml`.
 - `RATE_LIMIT_MAX` (example: `120`)
 
 Optional:
-- `AZURE_OPENAI_*`
-- `LOCAL_MODEL_ENDPOINT`
-- `CUSTOM_PROVIDER_*`
+- `OLLAMA_BASE_URL`
 
 ### Web (`hephaestus-web`)
 - `NEXT_PUBLIC_API_BASE`

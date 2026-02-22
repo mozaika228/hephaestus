@@ -1,16 +1,16 @@
 import { formatStreamChunk, formatStreamDone, formatStreamError } from "./stream.js";
 
-export async function localProvider({ message, res, config, stream = true, fileId }) {
-  if (!config.localEndpoint) {
+export async function ollamaProvider({ message, res, config, stream = true, fileId }) {
+  if (!config.ollamaEndpoint) {
     if (stream) {
-      res.write(formatStreamError("Local model endpoint is missing.", "invalid_configuration"));
+      res.write(formatStreamError("Ollama endpoint is missing.", "invalid_configuration"));
       res.end(formatStreamDone());
       return;
     }
-    return { ok: false, code: "invalid_configuration", error: "Local model endpoint is missing." };
+    return { ok: false, code: "invalid_configuration", error: "Ollama endpoint is missing." };
   }
 
-  const response = await fetch(config.localEndpoint, {
+  const response = await fetch(config.ollamaEndpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, stream: false, fileId })
@@ -19,7 +19,7 @@ export async function localProvider({ message, res, config, stream = true, fileI
   if (!response.ok) {
     const text = await response.text();
     if (stream) {
-      res.write(formatStreamError(`Local model error: ${text}`, "provider_error"));
+      res.write(formatStreamError(`Ollama error: ${text}`, "provider_error"));
       res.end(formatStreamDone());
       return;
     }
@@ -30,7 +30,7 @@ export async function localProvider({ message, res, config, stream = true, fileI
   const text = payload.text || payload.message || "";
 
   if (stream) {
-    res.write(formatStreamChunk(text || "Local model replied."));
+    res.write(formatStreamChunk(text || "Ollama replied."));
     res.end(formatStreamDone());
     return;
   }

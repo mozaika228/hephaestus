@@ -14,7 +14,7 @@ Hephaestus is a multi-platform AI assistant (web + desktop + mobile) with a modu
 
 ## Core Capabilities
 - Chat assistant with streaming responses
-- Multi-provider model routing (OpenAI, Azure, local, custom)
+- Multi-provider model routing (OpenAI, Ollama)
 - File ingestion and analysis workflows
 - Planner tasks and job queue endpoints
 - Enterprise SSO endpoints (SAML start/callback flow scaffold)
@@ -32,9 +32,7 @@ Hephaestus is a multi-platform AI assistant (web + desktop + mobile) with a modu
 ## Provider Support
 Configured through `services/api/.env`:
 - OpenAI (`OPENAI_API_KEY`, `OPENAI_MODEL`)
-- Azure OpenAI (`AZURE_OPENAI_*`)
-- Local endpoint (`LOCAL_MODEL_ENDPOINT`)
-- Custom endpoint (`CUSTOM_PROVIDER_*`)
+- Ollama (`OLLAMA_BASE_URL`)
 
 ## Local Development
 ### Prerequisites
