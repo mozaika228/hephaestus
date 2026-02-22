@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -17,6 +18,11 @@ import psycopg
 import requests
 from fastapi import FastAPI
 from langgraph.graph import END, START, StateGraph
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Hephaestus Orchestrator", version="0.2.0")
@@ -50,6 +56,7 @@ class OrchestratorState(TypedDict):
     sub_agents: List[Dict[str, Any]]
     execution: List[Dict[str, Any]]
     debate: Dict[str, Any]
+    verifier_report: Dict[str, Any]
     safety: Dict[str, Any]
     final_answer: str
     steps: List[Dict[str, Any]]
@@ -71,6 +78,21 @@ CIRCUIT_FAIL_THRESHOLD = int(os.getenv("ORCH_CIRCUIT_FAIL_THRESHOLD", "3"))
 CIRCUIT_RESET_SECONDS = int(os.getenv("ORCH_CIRCUIT_RESET_SECONDS", "60"))
 EMBEDDING_DIM = 384
 MEMORY_KNOWLEDGE: List[Dict[str, Any]] = []
+TRACE_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "hephaestus-orchestrator")
+
+
+def setup_tracing() -> None:
+    provider = TracerProvider(resource=Resource.create({"service.name": TRACE_SERVICE_NAME}))
+    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+    if otlp_endpoint:
+        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint)))
+    else:
+        provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+    trace.set_tracer_provider(provider)
+
+
+setup_tracing()
+TRACER = trace.get_tracer("hephaestus.orchestrator")
 
 
 def now_iso() -> str:
@@ -93,6 +115,18 @@ def append_step(state: OrchestratorState, node: str, payload: Dict[str, Any]) ->
     entry["step_hash"] = step_hash
     state["steps"].append(entry)
     state["step_hash"] = step_hash
+
+
+@contextlib.contextmanager
+def trace_node(name: str, state: OrchestratorState):
+    with TRACER.start_as_current_span(f"graph.node.{name}") as span:
+        span.set_attribute("run.id", state["run_id"])
+        span.set_attribute("session.id", state["session_id"])
+        span.set_attribute("graph.intent", state.get("intent", "unknown"))
+        request_id = str(state.get("metadata", {}).get("request_id", ""))
+        if request_id:
+            span.set_attribute("request.id", request_id)
+        yield span
 
 
 def get_conn():
@@ -521,16 +555,22 @@ def execute_tool_with_resilience(name: str, args: Dict[str, Any]) -> Dict[str, A
 
     last_error = ""
     for attempt in range(1, MAX_EXECUTION_ATTEMPTS + 1):
-        try:
-            output = tool(args)
-            output["attempt"] = attempt
-            circuit.on_success()
-            return output
-        except Exception as exc:
-            last_error = str(exc)
-            circuit.on_failure()
-            if attempt < MAX_EXECUTION_ATTEMPTS:
-                time.sleep(0.2 * attempt)
+        with TRACER.start_as_current_span("tool.execute") as span:
+            span.set_attribute("tool.name", name)
+            span.set_attribute("tool.attempt", attempt)
+            try:
+                output = tool(args)
+                output["attempt"] = attempt
+                circuit.on_success()
+                span.set_attribute("tool.status", "ok")
+                return output
+            except Exception as exc:
+                last_error = str(exc)
+                circuit.on_failure()
+                span.set_attribute("tool.status", "error")
+                span.set_attribute("tool.error", last_error)
+                if attempt < MAX_EXECUTION_ATTEMPTS:
+                    time.sleep(0.2 * attempt)
 
     return {
         "tool": name,
@@ -541,102 +581,126 @@ def execute_tool_with_resilience(name: str, args: Dict[str, Any]) -> Dict[str, A
 
 
 def node_intent_router(state: OrchestratorState) -> OrchestratorState:
-    text = state["prompt"].lower()
-    intent = "general"
-    if any(k in text for k in ["file", "image", "audio", "video"]):
-        intent = "multimodal_rag"
-    elif any(k in text for k in ["plan", "roadmap", "milestone"]):
-        intent = "planning"
-    elif any(k in text for k in ["compare", "verify", "fact check"]):
-        intent = "research"
-    state["intent"] = intent
-    append_step(state, "intent_router", {"intent": intent})
+    with trace_node("intent_router", state) as span:
+        text = state["prompt"].lower()
+        intent = "general"
+        if any(k in text for k in ["file", "image", "audio", "video"]):
+            intent = "multimodal_rag"
+        elif any(k in text for k in ["plan", "roadmap", "milestone"]):
+            intent = "planning"
+        elif any(k in text for k in ["compare", "verify", "fact check"]):
+            intent = "research"
+        state["intent"] = intent
+        span.set_attribute("graph.intent", intent)
+        append_step(state, "intent_router", {"intent": intent})
     return state
 
 
 def node_planner(state: OrchestratorState) -> OrchestratorState:
-    plan = [
-        {"task": "understand_request", "agent": "planner", "status": "done"},
-        {"task": "collect_context", "agent": "researcher", "status": "queued"},
-        {"task": "execute_tools", "agent": "executor", "status": "queued"},
-        {"task": "critic_review", "agent": "critic", "status": "queued"},
-    ]
-
-    depth = int(state["metadata"].get("depth", 0))
-    budget = int(state["metadata"].get("spawn_budget", MAX_SUBAGENT_CHILDREN))
-    if len(state["prompt"]) > 200 and depth < MAX_SUBAGENT_DEPTH and budget > 0:
-        sub_count = min(2, budget, MAX_SUBAGENT_CHILDREN)
-        sub_agents = [
-            {"id": f"sub_{i+1}", "role": "planner.subagent", "depth": depth + 1}
-            for i in range(sub_count)
+    with trace_node("planner", state) as span:
+        plan = [
+            {"task": "understand_request", "agent": "planner", "status": "done"},
+            {"task": "collect_context", "agent": "researcher", "status": "queued"},
+            {"task": "execute_tools", "agent": "executor", "status": "queued"},
+            {"task": "critic_review", "agent": "critic", "status": "queued"},
         ]
-        state["sub_agents"] = sub_agents
-        plan.append({"task": "spawn_sub_agents", "agent": "planner", "status": "done", "count": sub_count})
-    else:
-        state["sub_agents"] = []
 
-    state["plan"] = plan
-    append_step(state, "planner", {"plan": plan, "sub_agents": state["sub_agents"]})
+        depth = int(state["metadata"].get("depth", 0))
+        budget = int(state["metadata"].get("spawn_budget", MAX_SUBAGENT_CHILDREN))
+        if len(state["prompt"]) > 200 and depth < MAX_SUBAGENT_DEPTH and budget > 0:
+            sub_count = min(2, budget, MAX_SUBAGENT_CHILDREN)
+            sub_agents = [
+                {"id": f"sub_{i+1}", "role": "planner.subagent", "depth": depth + 1}
+                for i in range(sub_count)
+            ]
+            state["sub_agents"] = sub_agents
+            plan.append({"task": "spawn_sub_agents", "agent": "planner", "status": "done", "count": sub_count})
+        else:
+            state["sub_agents"] = []
+
+        state["plan"] = plan
+        span.set_attribute("planner.sub_agents", len(state["sub_agents"]))
+        append_step(state, "planner", {"plan": plan, "sub_agents": state["sub_agents"]})
     return state
 
 
 def node_researcher(state: OrchestratorState) -> OrchestratorState:
-    result = execute_tool_with_resilience("kb_search", {"query": state["prompt"]})
-    state["execution"].append({"phase": "researcher", **result})
-    append_step(state, "researcher", {"result": result})
+    with trace_node("researcher", state) as span:
+        result = execute_tool_with_resilience("kb_search", {"query": state["prompt"]})
+        state["execution"].append({"phase": "researcher", **result})
+        span.set_attribute("researcher.status", result.get("status", "unknown"))
+        append_step(state, "researcher", {"result": result})
     return state
 
 
 def node_executor(state: OrchestratorState) -> OrchestratorState:
-    tool_runs = [
-        execute_tool_with_resilience("web_search", {"query": state["prompt"]}),
-        execute_tool_with_resilience("code_exec_sandboxed", {"expression": "2+2*10"}),
-    ]
-    state["execution"].extend([{"phase": "executor", **item} for item in tool_runs])
-    append_step(state, "executor", {"execution": tool_runs})
+    with trace_node("executor", state):
+        tool_runs = [
+            execute_tool_with_resilience("web_search", {"query": state["prompt"]}),
+            execute_tool_with_resilience("code_exec_sandboxed", {"expression": "2+2*10"}),
+        ]
+        state["execution"].extend([{"phase": "executor", **item} for item in tool_runs])
+        append_step(state, "executor", {"execution": tool_runs})
     return state
 
 
 def node_critic_debate(state: OrchestratorState) -> OrchestratorState:
-    success_count = len([item for item in state["execution"] if item.get("status") == "ok"])
-    failure_count = len([item for item in state["execution"] if item.get("status") != "ok"])
-    pro = "Execution produced usable evidence and tool outputs."
-    con = "Some outputs may be synthetic and require stronger source verification."
-    vote = "pro" if success_count >= failure_count else "con"
-    confidence = 0.8 if vote == "pro" else 0.45
-    state["debate"] = {
-        "pro": pro,
-        "con": con,
-        "vote": vote,
-        "confidence": confidence,
-        "success_count": success_count,
-        "failure_count": failure_count,
-    }
-    append_step(state, "critic", state["debate"])
+    with trace_node("critic", state):
+        success_count = len([item for item in state["execution"] if item.get("status") == "ok"])
+        failure_count = len([item for item in state["execution"] if item.get("status") != "ok"])
+        vote = "pro" if success_count >= failure_count else "con"
+        confidence = 0.8 if vote == "pro" else 0.45
+        state["debate"] = {
+            "claim": "Execution output is adequate for next-step synthesis.",
+            "evidence": {
+                "tool_success_count": success_count,
+                "tool_failure_count": failure_count,
+            },
+            "risk": "Some outputs may be synthetic and require stronger source verification.",
+            "decision": vote,
+            "confidence": confidence,
+            "arguments": {
+                "pro": "Execution produced usable evidence and tool outputs.",
+                "con": "External evidence confidence is medium and needs stronger citations.",
+            },
+        }
+        append_step(state, "critic", state["debate"])
     return state
 
 
 def node_safety(state: OrchestratorState) -> OrchestratorState:
-    text = state["prompt"].lower()
-    violations = [pattern for pattern in FORBIDDEN_PATTERNS if pattern in text]
-    state["safety"] = {"allowed": len(violations) == 0, "violations": violations}
-    append_step(state, "safety", state["safety"])
+    with trace_node("safety", state):
+        text = state["prompt"].lower()
+        violations = [pattern for pattern in FORBIDDEN_PATTERNS if pattern in text]
+        state["safety"] = {"allowed": len(violations) == 0, "violations": violations}
+        append_step(state, "safety", state["safety"])
     return state
 
 
 def node_verifier(state: OrchestratorState) -> OrchestratorState:
-    if not state["safety"].get("allowed", True):
-        final_answer = "Request blocked by constitutional safety policy."
-    else:
-        final_answer = (
-            f"Intent={state['intent']}. "
-            f"PlanTasks={len(state['plan'])}. "
-            f"SubAgents={len(state['sub_agents'])}. "
-            f"DebateVote={state['debate'].get('vote', 'n/a')} "
-            f"Confidence={state['debate'].get('confidence', 0)}."
-        )
-    state["final_answer"] = final_answer
-    append_step(state, "verifier", {"final_answer": final_answer})
+    with trace_node("verifier", state):
+        if not state["safety"].get("allowed", True):
+            decision = "blocked"
+            final_answer = "Request blocked by constitutional safety policy."
+            confidence = 1.0
+        else:
+            decision = "approved"
+            confidence = float(state["debate"].get("confidence", 0.0))
+            final_answer = (
+                f"Intent={state['intent']}. "
+                f"PlanTasks={len(state['plan'])}. "
+                f"SubAgents={len(state['sub_agents'])}. "
+                f"DebateDecision={state['debate'].get('decision', 'n/a')} "
+                f"Confidence={confidence}."
+            )
+        state["verifier_report"] = {
+            "decision": decision,
+            "confidence": confidence,
+            "policy_checks": state["safety"],
+            "requires_human_review": confidence < 0.6,
+        }
+        state["final_answer"] = final_answer
+        append_step(state, "verifier", {"final_answer": final_answer, "report": state["verifier_report"]})
     return state
 
 
@@ -711,6 +775,7 @@ def run_graph(req: GraphRunRequest):
         "sub_agents": [],
         "execution": [],
         "debate": {},
+        "verifier_report": {},
         "safety": {},
         "final_answer": "",
         "steps": [],
@@ -729,6 +794,7 @@ def run_graph(req: GraphRunRequest):
         "final_answer": final_state["final_answer"],
         "safety": final_state["safety"],
         "debate": final_state["debate"],
+        "verifier_report": final_state["verifier_report"],
         "step_hash": final_state["step_hash"],
         "steps": final_state["steps"],
         "execution": final_state["execution"],

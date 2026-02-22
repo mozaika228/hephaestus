@@ -8,6 +8,8 @@ FastAPI-based multi-agent orchestration service with:
 - PostgreSQL persistence for runs and steps
 - Hybrid retrieval: keyword + semantic search with pgvector (memory fallback when DB is absent)
 - Tool registry with retry and circuit-breaker (`web_search`, `kb_search`, `http_fetch`, `code_exec_sandboxed`)
+- Debate + verifier reports with structured schema (`claim/evidence/risk/decision/confidence`)
+- OpenTelemetry tracing for graph nodes and tool calls
 
 ## Run locally
 ```bash
@@ -24,6 +26,8 @@ uvicorn app:app --host 0.0.0.0 --port 8100
 - `ORCH_TOOL_MAX_RETRIES`
 - `ORCH_CIRCUIT_FAIL_THRESHOLD`
 - `ORCH_CIRCUIT_RESET_SECONDS`
+- `OTEL_SERVICE_NAME`
+- `OTEL_EXPORTER_OTLP_ENDPOINT`
 
 ## Endpoints
 - `GET /health`
