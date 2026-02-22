@@ -1,0 +1,13 @@
+orchestrator:
+  image: ghcr.io/mozaika228/hephaestus-orchestrator:latest
+  replicas: 2
+  port: 8100
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 10
+  cpuUtilization: 70
+
+env:
+  databaseUrlSecretName: hephaestus-secrets
+  databaseUrlSecretKey: database-url

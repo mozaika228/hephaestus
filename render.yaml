@@ -17,6 +17,10 @@ services:
     rootDir: services/api
     buildCommand: npm install
     startCommand: node src/index.js
+    disk:
+      name: hephaestus-api-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: HEPHAESTUS_PROVIDER
         value: openai
@@ -48,6 +52,20 @@ services:
         sync: false
       - key: AI_SERVICE_URL
         value: https://hephaestus-ai.onrender.com
+      - key: ORCHESTRATOR_URL
+        value: https://hephaestus-orchestrator.onrender.com
+      - key: SQLITE_DB_PATH
+        value: /var/data/hephaestus.db
+      - key: ENTERPRISE_SSO_ENABLED
+        value: "false"
+      - key: SSO_JWT_SECRET
+        sync: false
+      - key: SAML_ENTRY_POINT
+        value: ""
+      - key: SAML_ISSUER
+        value: hephaestus
+      - key: SAML_AUDIENCE
+        value: hephaestus-users
 
   - type: web
     name: hephaestus-ai
@@ -56,3 +74,14 @@ services:
     rootDir: services/ai
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+
+  - type: web
+    name: hephaestus-orchestrator
+    runtime: python
+    plan: free
+    rootDir: services/orchestrator
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false

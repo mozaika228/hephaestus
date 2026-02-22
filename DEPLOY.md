@@ -6,6 +6,7 @@ This project supports Render deployment via `render.yaml`.
 - `hephaestus-web` - Next.js frontend
 - `hephaestus-api` - Node.js API
 - `hephaestus-ai` - FastAPI analysis service
+- `hephaestus-orchestrator` - FastAPI graph orchestrator
 
 ## Prerequisites
 - Repository connected to Render
@@ -24,6 +25,11 @@ This project supports Render deployment via `render.yaml`.
 - `OPENAI_API_KEY` (required for OpenAI provider)
 - `OPENAI_MODEL`
 - `AI_SERVICE_URL`
+- `ORCHESTRATOR_URL`
+- `SQLITE_DB_PATH` (production: `/var/data/hephaestus.db`)
+- `ENTERPRISE_SSO_ENABLED`
+- `SSO_JWT_SECRET`
+- `SAML_ENTRY_POINT`
 - `CORS_ALLOWED_ORIGINS` (comma-separated allowed web origins)
 - `RATE_LIMIT_WINDOW_MS` (example: `60000`)
 - `RATE_LIMIT_MAX` (example: `120`)
@@ -35,6 +41,9 @@ Optional:
 
 ### Web (`hephaestus-web`)
 - `NEXT_PUBLIC_API_BASE`
+
+### Orchestrator (`hephaestus-orchestrator`)
+- `DATABASE_URL` (PostgreSQL DSN)
 
 ## Health Checks
 - API: `GET /health`
@@ -52,5 +61,9 @@ Optional:
 
 ### Free-Tier Caveats
 - Services can sleep when idle.
-- No persistent disk in free setup.
-- SQLite can reset on redeploy.
+- Persistent disk is not available for free web instances.
+- SQLite resets on redeploy if you do not attach a disk.
+
+## Kubernetes / Helm
+- Base manifests: `infra/k8s/`
+- Helm chart: `infra/helm/hephaestus/`

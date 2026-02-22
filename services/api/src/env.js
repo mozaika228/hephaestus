@@ -6,6 +6,10 @@ export function validateConfig(config) {
     issues.push("AI_SERVICE_URL is required.");
   }
 
+  if (!config.orchestratorUrl) {
+    issues.push("ORCHESTRATOR_URL is required.");
+  }
+
   if (provider === "openai" && !config.openaiApiKey) {
     issues.push("OPENAI_API_KEY is required when HEPHAESTUS_PROVIDER=openai.");
   }
@@ -36,6 +40,10 @@ export function validateConfig(config) {
 
   if (!Number.isFinite(config.rateLimitMax) || config.rateLimitMax <= 0) {
     issues.push("RATE_LIMIT_MAX must be a positive number.");
+  }
+
+  if (config.enableSso && !config.ssoJwtSecret) {
+    issues.push("SSO_JWT_SECRET is required when ENTERPRISE_SSO_ENABLED=true.");
   }
 
   return issues;

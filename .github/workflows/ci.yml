@@ -41,8 +41,16 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install API Dependencies
+        working-directory: services/api
+        run: npm install
+
       - name: Check API Syntax
         run: node --check services/api/src/index.js
+
+      - name: Run API Tests
+        working-directory: services/api
+        run: npm test
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -54,3 +62,9 @@ jobs:
 
       - name: Check AI Syntax
         run: python -m py_compile services/ai/app.py
+
+      - name: Install Orchestrator Dependencies
+        run: pip install -r services/orchestrator/requirements.txt
+
+      - name: Check Orchestrator Syntax
+        run: python -m py_compile services/orchestrator/app.py

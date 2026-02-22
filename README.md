@@ -8,6 +8,7 @@ Hephaestus is a multi-platform AI assistant (web + desktop + mobile) with a modu
 - `apps/mobile` - Flutter mobile client
 - `services/api` - Node.js API (chat, files, planner, integrations)
 - `services/ai` - FastAPI service (analysis helpers and jobs)
+- `services/orchestrator` - FastAPI multi-agent graph orchestrator
 - `packages/shared` - shared constants and utilities
 - `infra` - infrastructure assets
 
@@ -16,12 +17,16 @@ Hephaestus is a multi-platform AI assistant (web + desktop + mobile) with a modu
 - Multi-provider model routing (OpenAI, Azure, local, custom)
 - File ingestion and analysis workflows
 - Planner tasks and job queue endpoints
+- Enterprise SSO endpoints (SAML start/callback flow scaffold)
+- API analytics summary endpoints (request/error/performance breakdown)
+- Multi-agent orchestration endpoint (`/orchestrator/run` -> graph service)
 - Web/Desktop/Mobile client surfaces
 
 ## Architecture
 1. Client sends requests to `services/api`.
 2. API routes requests to provider adapters or `services/ai`.
-3. API stores tasks/uploads/jobs in SQLite (current default).
+3. API can route high-level tasks to `services/orchestrator` graph execution.
+4. API stores tasks/uploads/jobs/analytics/SSO sessions in SQLite (or PostgreSQL-backed orchestrator state).
 4. Responses are returned as JSON or SSE streams.
 
 ## Provider Support
@@ -72,6 +77,11 @@ Important values:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
 - `AI_SERVICE_URL`
+- `ORCHESTRATOR_URL`
+- `SQLITE_DB_PATH` (set to persistent disk path in production, for example `/var/data/hephaestus.db`)
+- `ENTERPRISE_SSO_ENABLED`
+- `SSO_JWT_SECRET`
+- `SAML_ENTRY_POINT`
 - `CORS_ALLOWED_ORIGINS`
 - `RATE_LIMIT_WINDOW_MS`
 - `RATE_LIMIT_MAX`
@@ -83,12 +93,13 @@ Services:
 - `hephaestus-web`
 - `hephaestus-api`
 - `hephaestus-ai`
+- `hephaestus-orchestrator`
 
 Current configuration targets free-tier constraints.
 
 ## Known Free-Tier Constraints
-- No persistent disk in the current free setup
-- SQLite data may reset after redeploy/restart
+- Persistent disks are not available on Render free web instances
+- SQLite data resets after redeploy/restart if no disk is attached
 - Video analysis paths requiring system `ffmpeg` may be limited
 
 ## Troubleshooting
@@ -110,6 +121,15 @@ Current configuration targets free-tier constraints.
 - Roadmap: `ROADMAP.md`
 - Deployment guide: `DEPLOY.md`
 - License: `LICENSE`
+
+## Enterprise Local Stack
+Use `infra/docker/docker-compose.enterprise.yml` for local production-like stack:
+- PostgreSQL + pgvector
+- Redis
+- Neo4j
+- Jaeger
+- Prometheus + Grafana
+- API + AI + Orchestrator services
 
 ## Security Notes
 - Never commit secrets.

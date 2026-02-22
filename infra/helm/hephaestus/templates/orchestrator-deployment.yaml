@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-orchestrator
+spec:
+  replicas: {{ .Values.orchestrator.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-orchestrator
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-orchestrator
+    spec:
+      containers:
+        - name: orchestrator
+          image: {{ .Values.orchestrator.image }}
+          ports:
+            - containerPort: {{ .Values.orchestrator.port }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.env.databaseUrlSecretName }}
+                  key: {{ .Values.env.databaseUrlSecretKey }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.orchestrator.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
