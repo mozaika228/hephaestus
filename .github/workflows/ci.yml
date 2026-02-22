@@ -68,3 +68,7 @@ jobs:
 
       - name: Check Orchestrator Syntax
         run: python -m py_compile services/orchestrator/app.py
+
+      - name: Run Orchestrator Tests
+        working-directory: services/orchestrator
+        run: python -m unittest discover -s tests -p "test_*.py"
