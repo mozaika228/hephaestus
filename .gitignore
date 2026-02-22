@@ -10,3 +10,5 @@ coverage/
 .DS_Store
 Thumbs.db
 services/api/storage/
+__pycache__/
+*.py[cod]
