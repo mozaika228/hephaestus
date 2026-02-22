@@ -31,6 +31,7 @@ uvicorn app:app --host 0.0.0.0 --port 8100
 
 ## Endpoints
 - `GET /health`
+- `GET /metrics`
 - `POST /v1/graph/run`
 - `POST /v1/knowledge/ingest`
 - `POST /v1/knowledge/search`

@@ -65,6 +65,14 @@ class OrchestratorGraphTests(unittest.TestCase):
         self.assertGreaterEqual(search["count"], 1)
         self.assertIn("LangGraph", search["results"][0]["content"])
 
+    def test_metrics_endpoint_contains_orchestrator_metrics(self):
+        _ = app.run_graph(app.GraphRunRequest(prompt="Simple planning task"))
+        response = app.metrics()
+        metrics_text = response.body.decode("utf-8")
+        self.assertIn("hephaestus_orchestrator_graph_runs_total", metrics_text)
+        self.assertIn("hephaestus_orchestrator_node_duration_seconds", metrics_text)
+        self.assertIn("hephaestus_orchestrator_tool_executions_total", metrics_text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -23,6 +23,8 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from prometheus_client import Counter, Histogram, generate_latest
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Hephaestus Orchestrator", version="0.2.0")
@@ -93,6 +95,26 @@ def setup_tracing() -> None:
 
 setup_tracing()
 TRACER = trace.get_tracer("hephaestus.orchestrator")
+NODE_DURATION_SECONDS = Histogram(
+    "hephaestus_orchestrator_node_duration_seconds",
+    "Execution time per orchestrator node",
+    ["node"],
+)
+TOOL_EXECUTIONS_TOTAL = Counter(
+    "hephaestus_orchestrator_tool_executions_total",
+    "Total tool execution attempts by tool and status",
+    ["tool", "status"],
+)
+TOOL_CIRCUIT_OPEN_TOTAL = Counter(
+    "hephaestus_orchestrator_tool_circuit_open_total",
+    "Total tool requests rejected due to open circuit breaker",
+    ["tool"],
+)
+GRAPH_RUNS_TOTAL = Counter(
+    "hephaestus_orchestrator_graph_runs_total",
+    "Total graph runs by result",
+    ["result"],
+)
 
 
 def now_iso() -> str:
@@ -119,6 +141,7 @@ def append_step(state: OrchestratorState, node: str, payload: Dict[str, Any]) ->
 
 @contextlib.contextmanager
 def trace_node(name: str, state: OrchestratorState):
+    start = time.perf_counter()
     with TRACER.start_as_current_span(f"graph.node.{name}") as span:
         span.set_attribute("run.id", state["run_id"])
         span.set_attribute("session.id", state["session_id"])
@@ -126,7 +149,10 @@ def trace_node(name: str, state: OrchestratorState):
         request_id = str(state.get("metadata", {}).get("request_id", ""))
         if request_id:
             span.set_attribute("request.id", request_id)
-        yield span
+        try:
+            yield span
+        finally:
+            NODE_DURATION_SECONDS.labels(node=name).observe(time.perf_counter() - start)
 
 
 def get_conn():
@@ -551,6 +577,8 @@ def execute_tool_with_resilience(name: str, args: Dict[str, Any]) -> Dict[str, A
 
     circuit = CIRCUITS.setdefault(name, CircuitBreaker())
     if circuit.is_open():
+        TOOL_CIRCUIT_OPEN_TOTAL.labels(tool=name).inc()
+        TOOL_EXECUTIONS_TOTAL.labels(tool=name, status="circuit_open").inc()
         return {"tool": name, "status": "error", "error": "circuit_open"}
 
     last_error = ""
@@ -563,12 +591,14 @@ def execute_tool_with_resilience(name: str, args: Dict[str, Any]) -> Dict[str, A
                 output["attempt"] = attempt
                 circuit.on_success()
                 span.set_attribute("tool.status", "ok")
+                TOOL_EXECUTIONS_TOTAL.labels(tool=name, status="ok").inc()
                 return output
             except Exception as exc:
                 last_error = str(exc)
                 circuit.on_failure()
                 span.set_attribute("tool.status", "error")
                 span.set_attribute("tool.error", last_error)
+                TOOL_EXECUTIONS_TOTAL.labels(tool=name, status="error").inc()
                 if attempt < MAX_EXECUTION_ATTEMPTS:
                     time.sleep(0.2 * attempt)
 
@@ -745,6 +775,11 @@ def health():
     }
 
 
+@app.get("/metrics")
+def metrics():
+    return PlainTextResponse(generate_latest().decode("utf-8"), media_type="text/plain; version=0.0.4")
+
+
 @app.post("/v1/knowledge/ingest")
 def knowledge_ingest(req: KnowledgeIngestRequest):
     document_id = req.document_id or f"doc_{uuid4()}"
@@ -783,8 +818,13 @@ def run_graph(req: GraphRunRequest):
         "metadata": req.metadata,
     }
 
-    final_state = GRAPH.invoke(initial_state)
-    persist_run(final_state)
+    try:
+        final_state = GRAPH.invoke(initial_state)
+        persist_run(final_state)
+        GRAPH_RUNS_TOTAL.labels(result="ok").inc()
+    except Exception:
+        GRAPH_RUNS_TOTAL.labels(result="error").inc()
+        raise
 
     return {
         "ok": True,
