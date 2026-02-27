@@ -86,9 +86,10 @@ TRACE_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "hephaestus-orchestrator")
 def setup_tracing() -> None:
     provider = TracerProvider(resource=Resource.create({"service.name": TRACE_SERVICE_NAME}))
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+    trace_to_console = os.getenv("ORCH_TRACE_TO_CONSOLE", "false").strip().lower() == "true"
     if otlp_endpoint:
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint)))
-    else:
+    elif trace_to_console:
         provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
     trace.set_tracer_provider(provider)
 
@@ -840,3 +841,4 @@ def run_graph(req: GraphRunRequest):
         "execution": final_state["execution"],
         "sub_agents": final_state["sub_agents"],
     }
+

@@ -28,6 +28,7 @@ uvicorn app:app --host 0.0.0.0 --port 8100
 - `ORCH_CIRCUIT_RESET_SECONDS`
 - `OTEL_SERVICE_NAME`
 - `OTEL_EXPORTER_OTLP_ENDPOINT`
+- `ORCH_TRACE_TO_CONSOLE` (set `true` to print spans locally)
 
 ## Endpoints
 - `GET /health`
@@ -35,3 +36,4 @@ uvicorn app:app --host 0.0.0.0 --port 8100
 - `POST /v1/graph/run`
 - `POST /v1/knowledge/ingest`
 - `POST /v1/knowledge/search`
+

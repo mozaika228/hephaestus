@@ -53,8 +53,8 @@ class OrchestratorGraphTests(unittest.TestCase):
                 document_id="doc_test",
                 content="LangGraph enables stateful workflows. Retrieval quality depends on indexing strategy.",
                 metadata={"source": "unit-test"},
-                chunk_size=6,
-                chunk_overlap=1,
+                chunk_size=100,
+                chunk_overlap=20,
             )
         )
         self.assertTrue(ingest["ok"])
@@ -76,3 +76,4 @@ class OrchestratorGraphTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
