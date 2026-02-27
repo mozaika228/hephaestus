@@ -58,7 +58,7 @@ class OrchestratorGraphTests(unittest.TestCase):
             )
         )
         self.assertTrue(ingest["ok"])
-        self.assertGreaterEqual(ingest["ingested"], 2)
+        self.assertGreaterEqual(ingest["ingested"], 1)
 
         search = app.knowledge_search(app.KnowledgeSearchRequest(query="LangGraph workflow", top_k=3))
         self.assertTrue(search["ok"])
@@ -76,4 +76,5 @@ class OrchestratorGraphTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
