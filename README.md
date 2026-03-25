@@ -9,6 +9,8 @@ Hephaestus is a multi-platform AI assistant (web + desktop + mobile) with a modu
 - `services/api` - Node.js API (chat, files, planner, integrations)
 - `services/ai` - FastAPI service (analysis helpers and jobs)
 - `services/orchestrator` - FastAPI multi-agent graph orchestrator
+- `services/enterprise-java` - Spring Boot enterprise policy/auth service (POC)
+- `services/runtime-cpp` - C++ safe execution runtime (POC)
 - `packages/shared` - shared constants and utilities
 - `infra` - infrastructure assets
 
@@ -76,6 +78,8 @@ Important values:
 - `OPENAI_MODEL`
 - `AI_SERVICE_URL`
 - `ORCHESTRATOR_URL`
+- `ENTERPRISE_JAVA_URL`
+- `RUNTIME_CPP_URL`
 - `SQLITE_DB_PATH` (set to persistent disk path in production, for example `/var/data/hephaestus.db`)
 - `ENTERPRISE_SSO_ENABLED`
 - `SSO_JWT_SECRET`
@@ -127,7 +131,7 @@ Use `infra/docker/docker-compose.enterprise.yml` for local production-like stack
 - Neo4j
 - Jaeger
 - Prometheus + Grafana
-- API + AI + Orchestrator services
+- API + AI + Orchestrator + Enterprise Java + Runtime C++ services
 
 ## Security Notes
 - Never commit secrets.
@@ -136,3 +140,4 @@ Use `infra/docker/docker-compose.enterprise.yml` for local production-like stack
 
 ## License
 This project is licensed under the MIT License. See `LICENSE`.
+

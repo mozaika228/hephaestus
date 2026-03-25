@@ -12,6 +12,8 @@ export function getConfig() {
     ollamaEndpoint: process.env.OLLAMA_BASE_URL || "",
     aiServiceUrl: process.env.AI_SERVICE_URL || "http://localhost:8000",
     orchestratorUrl: process.env.ORCHESTRATOR_URL || "http://localhost:8100",
+    enterpriseJavaUrl: process.env.ENTERPRISE_JAVA_URL || "http://localhost:8200",
+    runtimeCppUrl: process.env.RUNTIME_CPP_URL || "http://localhost:8300",
     dbPath: process.env.SQLITE_DB_PATH || defaultDbPath,
     enableSso: (process.env.ENTERPRISE_SSO_ENABLED || "false").toLowerCase() === "true",
     ssoJwtSecret: process.env.SSO_JWT_SECRET || "",
@@ -23,3 +25,4 @@ export function getConfig() {
     rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 120)
   };
 }
+

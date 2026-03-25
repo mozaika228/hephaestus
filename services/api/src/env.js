@@ -10,6 +10,14 @@ export function validateConfig(config) {
     issues.push("ORCHESTRATOR_URL is required.");
   }
 
+  if (!config.enterpriseJavaUrl) {
+    issues.push("ENTERPRISE_JAVA_URL is required.");
+  }
+
+  if (!config.runtimeCppUrl) {
+    issues.push("RUNTIME_CPP_URL is required.");
+  }
+
   if (provider === "openai" && !config.openaiApiKey) {
     issues.push("OPENAI_API_KEY is required when HEPHAESTUS_PROVIDER=openai.");
   }
@@ -36,3 +44,5 @@ export function validateConfig(config) {
 
   return issues;
 }
+
+

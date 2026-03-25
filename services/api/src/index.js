@@ -9,6 +9,7 @@ import { registerIntegrationRoutes } from "./routes/integrations.js";
 import { registerJobRoutes } from "./routes/jobs.js";
 import { registerEnterpriseRoutes } from "./routes/enterprise.js";
 import { registerOrchestratorRoutes } from "./routes/orchestrator.js";
+import { registerPolyglotRoutes } from "./routes/polyglot.js";
 import { getConfig } from "./config.js";
 import { validateConfig } from "./env.js";
 import { createRequestLogger, log } from "./logger.js";
@@ -59,6 +60,7 @@ export function createApp(config = getConfig()) {
   registerJobRoutes(app);
   registerEnterpriseRoutes(app, config);
   registerOrchestratorRoutes(app, config);
+  registerPolyglotRoutes(app, config);
 
   return app;
 }
@@ -82,6 +84,8 @@ export function startServer() {
       ollamaEndpoint: config.ollamaEndpoint || "",
       aiServiceUrl: config.aiServiceUrl,
       orchestratorUrl: config.orchestratorUrl,
+      enterpriseJavaUrl: config.enterpriseJavaUrl,
+      runtimeCppUrl: config.runtimeCppUrl,
       dbPath: config.dbPath || ""
     });
   });
@@ -90,3 +94,5 @@ export function startServer() {
 if (process.env.HEPHAESTUS_DISABLE_AUTOSTART !== "true") {
   startServer();
 }
+
+

@@ -26,6 +26,8 @@ This project supports Render deployment via `render.yaml`.
 - `OPENAI_MODEL`
 - `AI_SERVICE_URL`
 - `ORCHESTRATOR_URL`
+- `ENTERPRISE_JAVA_URL` (polyglot POC)
+- `RUNTIME_CPP_URL` (polyglot POC)
 - `SQLITE_DB_PATH` (production: `/var/data/hephaestus.db`)
 - `ENTERPRISE_SSO_ENABLED`
 - `SSO_JWT_SECRET`
@@ -65,3 +67,4 @@ Optional:
 ## Kubernetes / Helm
 - Base manifests: `infra/k8s/`
 - Helm chart: `infra/helm/hephaestus/`
+
