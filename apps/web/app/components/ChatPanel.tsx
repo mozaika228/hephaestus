@@ -132,6 +132,7 @@ export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
       setConversationId(activeId);
       await refreshConversations();
     }
+    if (!activeId) return;
     const form = new FormData();
     form.append("file", file);
     form.append("conversationId", activeId);
