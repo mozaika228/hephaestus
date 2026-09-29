@@ -3,6 +3,7 @@ import cors from "cors";
 import multer from "multer";
 
 import { registerChatRoutes } from "./routes/chat.js";
+import { registerConversationRoutes } from "./routes/conversations.js";
 import { registerFileRoutes } from "./routes/files.js";
 import { registerPlannerRoutes } from "./routes/planner.js";
 import { registerIntegrationRoutes } from "./routes/integrations.js";
@@ -18,7 +19,7 @@ import { createAnalyticsTracker } from "./middleware/analytics.js";
 
 export function createApp(config = getConfig()) {
   const app = express();
-  const upload = multer({ storage: multer.memoryStorage() });
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
   const allowedOrigins = config.corsAllowedOrigins
     .split(",")
     .map((item) => item.trim())
@@ -53,6 +54,7 @@ export function createApp(config = getConfig()) {
     res.json({ status: "Hephaestus API online" });
   });
 
+  registerConversationRoutes(app);
   registerChatRoutes(app);
   registerFileRoutes(app, upload);
   registerPlannerRoutes(app);
@@ -94,5 +96,6 @@ export function startServer() {
 if (process.env.HEPHAESTUS_DISABLE_AUTOSTART !== "true") {
   startServer();
 }
+
 
 

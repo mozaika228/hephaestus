@@ -36,12 +36,16 @@ services:
         value: ""
       - key: OLLAMA_BASE_URL
         value: ""
+      - key: OLLAMA_MODEL
+        value: llama3.2
       - key: AI_SERVICE_URL
         value: https://hephaestus-ai.onrender.com
       - key: ORCHESTRATOR_URL
         value: https://hephaestus-orchestrator.onrender.com
       - key: SQLITE_DB_PATH
         value: /var/data/hephaestus.db
+      - key: UPLOADS_DIR
+        value: /var/data/uploads
       - key: ENTERPRISE_SSO_ENABLED
         value: "false"
       - key: SSO_JWT_SECRET

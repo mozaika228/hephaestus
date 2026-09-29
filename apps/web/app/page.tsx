@@ -77,7 +77,9 @@
        connectionError: "Connection error.",
        errorPrefix: "Error",
        analysisTitle: "Analysis Result",
-       noData: "No data"
+       noData: "No data",
+       conversations: "Your conversations",
+       newConversation: "New chat"
      },
      planner: {
        title: "Planner",
@@ -161,7 +163,9 @@
        connectionError: "Ошибка соединения.",
        errorPrefix: "Ошибка",
        analysisTitle: "Результат анализа",
-       noData: "Нет данных"
+       noData: "Нет данных",
+       conversations: "Ваши беседы",
+       newConversation: "Новый чат"
      },
      planner: {
        title: "Планировщик",
@@ -245,7 +249,9 @@
        connectionError: "Қосылым қатесі.",
        errorPrefix: "Қате",
        analysisTitle: "Талдау нәтижесі",
-       noData: "Дерек жоқ"
+       noData: "Дерек жоқ",
+       conversations: "Сөйлесулеріңіз",
+       newConversation: "Жаңа чат"
      },
      planner: {
        title: "Жоспарлаушы",

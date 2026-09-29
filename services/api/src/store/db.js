@@ -31,6 +31,29 @@ db.exec(`
     updatedAt TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS conversations (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    conversationId TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    content TEXT NOT NULL,
+    provider TEXT,
+    status TEXT NOT NULL DEFAULT 'complete',
+    attachmentId TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_messages_conversation_created
+    ON messages(conversationId, createdAt);
+
   CREATE TABLE IF NOT EXISTS tasks (
     id TEXT PRIMARY KEY,
     title TEXT,
@@ -75,3 +98,12 @@ db.exec(`
 export function getDb() {
   return db;
 }
+
+// Lightweight migrations for databases created before conversation support.
+const uploadColumns = db.prepare("PRAGMA table_info(uploads)").all().map((column) => column.name);
+if (!uploadColumns.includes("conversationId")) {
+  db.exec("ALTER TABLE uploads ADD COLUMN conversationId TEXT");
+}
+
+db.prepare("UPDATE messages SET status = 'failed', content = CASE WHEN content = '' THEN '[Response interrupted by server restart]' ELSE content END, updatedAt = ? WHERE status = 'pending'")
+  .run(new Date().toISOString());

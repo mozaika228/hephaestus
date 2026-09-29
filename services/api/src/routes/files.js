@@ -10,10 +10,9 @@ import { errorJson } from "../http.js";
 import { getCached, invalidateCachePrefix, setCached } from "../cache.js";
 import { resolveFileDecision } from "../logic/aiLogicClient.js";
 import { log } from "../logger.js";
+import { getConversation } from "../store/conversations.js";
 
-const storageDir = path.join(process.cwd(), "storage", "uploads");
-
-async function ensureStorage() {
+async function ensureStorage(storageDir) {
   await fs.mkdir(storageDir, { recursive: true });
 }
 
@@ -77,12 +76,19 @@ export function registerFileRoutes(app, upload) {
       return;
     }
 
-    await ensureStorage();
+    const config = getConfig();
+    const conversationId = typeof req.body?.conversationId === "string" ? req.body.conversationId : null;
+    if (conversationId && !getConversation(conversationId)) {
+      res.status(404).json(errorJson("not_found", "Conversation not found."));
+      return;
+    }
+    const storageDir = config.uploadsDir;
+    await ensureStorage(storageDir);
     const id = createId("file");
-    const storedPath = path.join(storageDir, `${id}-${file.originalname}`);
+    const safeName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storedPath = path.join(storageDir, `${id}-${safeName}`);
     await fs.writeFile(storedPath, file.buffer);
 
-    const config = getConfig();
     const providerFileId = await uploadToOpenAI(file, config);
 
     const record = addUpload({
@@ -93,6 +99,7 @@ export function registerFileRoutes(app, upload) {
       status: "stored",
       providerFileId: providerFileId || null,
       localPath: storedPath,
+      conversationId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });

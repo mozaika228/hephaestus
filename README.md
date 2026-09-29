@@ -16,6 +16,8 @@ Hephaestus is a multi-platform AI assistant (web + desktop + mobile) with a modu
 
 ## Core Capabilities
 - Chat assistant with streaming responses
+- Persistent conversations and messages, restored from the API after reopening the web client
+- Conversation-linked file records and uploads stored beside the configured persistent database
 - Multi-provider model routing (OpenAI, Ollama)
 - File ingestion and analysis workflows
 - Planner tasks and job queue endpoints
@@ -81,6 +83,8 @@ Important values:
 - `ENTERPRISE_JAVA_URL`
 - `RUNTIME_CPP_URL`
 - `SQLITE_DB_PATH` (set to persistent disk path in production, for example `/var/data/hephaestus.db`)
+- `UPLOADS_DIR` (persistent file directory; defaults to a sibling `uploads` directory beside the database)
+- `OLLAMA_BASE_URL` and `OLLAMA_MODEL`
 - `ENTERPRISE_SSO_ENABLED`
 - `SSO_JWT_SECRET`
 - `SAML_ENTRY_POINT`
@@ -102,6 +106,7 @@ Current configuration targets free-tier constraints.
 ## Known Free-Tier Constraints
 - Persistent disks are not available on Render free web instances
 - SQLite data resets after redeploy/restart if no disk is attached
+- Conversation history and uploaded files are shared by API clients; authentication and per-user isolation are not implemented yet. Do not use this deployment for private data.
 - Video analysis paths requiring system `ffmpeg` may be limited
 
 ## Troubleshooting

@@ -11,7 +11,8 @@ function createWindow() {
     }
   });
 
-  win.loadFile("public/index.html");
+  const webAppUrl = process.env.HEPHAESTUS_WEB_URL || "http://localhost:3000";
+  win.loadURL(webAppUrl);
 }
 
 app.whenReady().then(() => {
