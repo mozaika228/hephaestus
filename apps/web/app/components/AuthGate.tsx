@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { getApiBase } from "../apiClient";
 
 type Labels = {
   email: string; password: string; signIn: string; signUp: string;
@@ -8,11 +9,7 @@ type Labels = {
 };
 
 export default function AuthGate({ children, labels }: { children: ReactNode; labels: Labels }) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE || (
-    typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
-      ? "https://hephaestus-api.onrender.com"
-      : "http://localhost:4000"
-  );
+  const apiBase = getApiBase();
   const [authenticated, setAuthenticated] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

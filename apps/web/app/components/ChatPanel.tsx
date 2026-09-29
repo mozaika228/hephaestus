@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiFetch } from "../apiClient";
+import { apiFetch, getApiBase } from "../apiClient";
 
 const PROVIDERS = [
   { id: "openai", label: "OpenAI" },
@@ -33,7 +33,7 @@ function parseSse(buffer: string) {
 }
 
 export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
-  const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000", []);
+  const apiBase = useMemo(() => getApiBase(), []);
   const [provider, setProvider] = useState("openai");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);

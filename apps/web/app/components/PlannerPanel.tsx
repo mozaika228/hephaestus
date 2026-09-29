@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { apiFetch } from "../apiClient";
+import { apiFetch, getApiBase } from "../apiClient";
 
 type PlannerLabels = {
   title: string;
@@ -13,7 +13,7 @@ type PlannerLabels = {
 
 export default function PlannerPanel({ labels }: { labels: PlannerLabels }) {
   const apiBase = useMemo(
-    () => process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000",
+    () => getApiBase(),
     []
   );
   const [tasks, setTasks] = useState<Array<{ id: string; title: string; status: string }>>([]);
