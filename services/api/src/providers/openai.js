@@ -33,7 +33,7 @@ function extractTextFromResponse(payload) {
 }
 
 export async function openaiProvider({
-  message, history, res, config, stream = true, fileId, doneMetadata = {}, onComplete
+  message, history, res, config, stream = true, fileId, doneMetadata = {}, onComplete, signal
 }) {
   if (!config.openaiApiKey) {
     const error = "OpenAI API key is missing.";
@@ -59,7 +59,8 @@ export async function openaiProvider({
       "Content-Type": "application/json",
       Authorization: `Bearer ${config.openaiApiKey}`
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal
   });
 
   if (!response.ok) {
@@ -86,7 +87,7 @@ export async function openaiProvider({
     if (finished) return;
     finished = true;
     await onComplete?.(answer, ok, error);
-    res.end(formatStreamDone(doneMetadata));
+    if (!res.destroyed && !res.writableEnded) res.end(formatStreamDone(doneMetadata));
   };
 
   await pipeSse({
@@ -106,8 +107,8 @@ export async function openaiProvider({
       }
     },
     onError: async () => {
-      res.write(formatStreamError("OpenAI stream parse error.", "provider_stream_error"));
-      await finish(false, "OpenAI stream parse error.");
+      if (!signal?.aborted && !res.destroyed) res.write(formatStreamError("OpenAI stream parse error.", "provider_stream_error"));
+      await finish(false, signal?.aborted ? "Request cancelled or timed out." : "OpenAI stream parse error.");
     }
   });
 

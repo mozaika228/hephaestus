@@ -5,16 +5,16 @@ const db = getDb();
 export function createAnalyticsEvent(event) {
   db.prepare(
     `INSERT INTO analytics_events
-      (id, requestId, method, path, statusCode, durationMs, provider, createdAt)
+      (id, ownerId, requestId, method, path, statusCode, durationMs, provider, createdAt)
      VALUES
-      (@id, @requestId, @method, @path, @statusCode, @durationMs, @provider, @createdAt)`
+      (@id, @ownerId, @requestId, @method, @path, @statusCode, @durationMs, @provider, @createdAt)`
   ).run(event);
   return event;
 }
 
-export function summarizeAnalytics({ since, until }) {
-  const where = [];
-  const params = {};
+export function summarizeAnalytics({ since, until, ownerId }) {
+  const where = ["ownerId = @ownerId"];
+  const params = { ownerId };
 
   if (since) {
     where.push("createdAt >= @since");

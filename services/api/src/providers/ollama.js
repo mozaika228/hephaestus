@@ -17,7 +17,7 @@ function buildMessages({ history, message, instructions }) {
 }
 
 export async function ollamaProvider({
-  message, history, res, config, stream = true, doneMetadata = {}, onComplete
+  message, history, res, config, stream = true, doneMetadata = {}, onComplete, signal
 }) {
   if (!config.ollamaEndpoint) {
     const error = "Ollama endpoint is missing.";
@@ -33,6 +33,7 @@ export async function ollamaProvider({
   const response = await fetch(ollamaChatUrl(config.ollamaEndpoint), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal,
     body: JSON.stringify({
       model: config.ollamaModel || "llama3.2",
       messages: buildMessages({ history, message, instructions: config.instructions }),
@@ -100,9 +101,11 @@ export async function ollamaProvider({
     }
   } catch (error) {
     failed = true;
-    res.write(formatStreamError(`Ollama stream failed: ${error.message}`, "provider_stream_error"));
-    await onComplete?.(answer, false, error.message);
+    if (!signal?.aborted && !res.destroyed) {
+      res.write(formatStreamError(`Ollama stream failed: ${error.message}`, "provider_stream_error"));
+    }
+    await onComplete?.(answer, false, signal?.aborted ? "Request cancelled or timed out." : error.message);
   }
   if (!failed) await onComplete?.(answer, true);
-  res.end(formatStreamDone(doneMetadata));
+  if (!res.destroyed && !res.writableEnded) res.end(formatStreamDone(doneMetadata));
 }

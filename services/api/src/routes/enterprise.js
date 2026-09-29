@@ -87,7 +87,7 @@ export function registerEnterpriseRoutes(app, config) {
   app.get("/enterprise/analytics/summary", (req, res) => {
     const since = typeof req.query.since === "string" ? req.query.since : "";
     const until = typeof req.query.until === "string" ? req.query.until : "";
-    const summary = summarizeAnalytics({ since, until });
+    const summary = summarizeAnalytics({ since, until, ownerId: req.user.id });
     res.json({ ok: true, summary });
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "../apiClient";
 
 type PlannerLabels = {
   title: string;
@@ -19,7 +20,7 @@ export default function PlannerPanel({ labels }: { labels: PlannerLabels }) {
   const [title, setTitle] = useState("");
 
   const loadTasks = async () => {
-    const response = await fetch(`${apiBase}/planner/tasks`);
+    const response = await apiFetch(`${apiBase}/planner/tasks`);
     const payload = await response.json();
     if (payload.ok) setTasks(payload.tasks || []);
   };
@@ -30,7 +31,7 @@ export default function PlannerPanel({ labels }: { labels: PlannerLabels }) {
 
   const addTask = async () => {
     if (!title.trim()) return;
-    const response = await fetch(`${apiBase}/planner/tasks`, {
+    const response = await apiFetch(`${apiBase}/planner/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: title.trim() })

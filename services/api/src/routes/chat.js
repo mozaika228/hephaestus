@@ -13,6 +13,7 @@ import {
   updateConversation,
   updateMessage
 } from "../store/conversations.js";
+import { getUpload } from "../store/uploads.js";
 
 const validProviders = new Set(["openai", "ollama"]);
 
@@ -21,24 +22,24 @@ function validateChatBody(body) {
   const message = typeof payload.message === "string" ? payload.message.trim() : "";
   const provider = typeof payload.provider === "string" ? payload.provider.trim().toLowerCase() : "";
   const conversationId = typeof payload.conversationId === "string" ? payload.conversationId.trim() : "";
-  const fileId = typeof payload.fileId === "string" ? payload.fileId.trim() : "";
   const attachmentId = typeof payload.attachmentId === "string" ? payload.attachmentId.trim() : "";
 
   if (!message) return { ok: false, code: "invalid_request", message: "message is required." };
+  if (message.length > 100000) return { ok: false, code: "invalid_request", message: "message must be 100,000 characters or fewer." };
   if (provider && !validProviders.has(provider)) {
     return { ok: false, code: "invalid_request", message: "provider is invalid." };
   }
   return {
     ok: true,
-    value: { message, provider: provider || undefined, conversationId: conversationId || undefined, fileId: fileId || undefined, attachmentId: attachmentId || undefined }
+    value: { message, provider: provider || undefined, conversationId: conversationId || undefined, attachmentId: attachmentId || undefined }
   };
 }
 
-function ensureConversation({ conversationId, message, provider }) {
+function ensureConversation({ conversationId, ownerId, message, provider }) {
   if (conversationId) {
-    const existing = getConversation(conversationId);
+    const existing = getConversation(conversationId, ownerId);
     if (!existing) return null;
-    return updateConversation(conversationId, {
+    return updateConversation(conversationId, ownerId, {
       provider: provider || existing.provider,
       title: existing.title === "New conversation" ? message.slice(0, 80) : existing.title
     });
@@ -47,6 +48,7 @@ function ensureConversation({ conversationId, message, provider }) {
   const now = new Date().toISOString();
   return createConversation({
     id: createId("conv"),
+    ownerId,
     title: message.slice(0, 80) || "New conversation",
     provider: provider || "openai",
     createdAt: now,
@@ -69,8 +71,16 @@ function recordUserMessage(conversationId, message, provider, attachmentId) {
   });
 }
 
-function responseHistory(conversationId) {
-  return listMessages(conversationId)
+function recordAssistantMessage(conversationId, content, provider, status = "complete") {
+  const now = new Date().toISOString();
+  return createMessage({
+    id: createId("msg"), conversationId, role: "assistant", content,
+    provider, status, createdAt: now, updatedAt: now
+  });
+}
+
+function responseHistory(conversationId, ownerId) {
+  return listMessages(conversationId, ownerId)
     .filter((item) => item.role === "user" || item.role === "assistant")
     .map(({ role, content }) => ({ role, content }));
 }
@@ -88,7 +98,14 @@ export function registerChatRoutes(app) {
       return;
     }
 
-    const { message, provider, conversationId, fileId, attachmentId } = parsed.value;
+    const { message, provider, conversationId, attachmentId } = parsed.value;
+    const attachment = attachmentId ? getUpload(attachmentId, req.user.id) : null;
+    if (attachmentId && (!attachment || attachment.conversationId !== conversationId)) {
+      res.write(formatStreamError("not_found: File attachment not found.", "not_found"));
+      res.end(formatStreamDone());
+      return;
+    }
+    const fileId = attachment?.providerFileId || undefined;
     const baseConfig = getConfig();
     const decision = await resolveChatDecision({ config: baseConfig, message, fileId, requestedProvider: provider });
     const { route, policy } = decision;
@@ -99,7 +116,7 @@ export function registerChatRoutes(app) {
       return;
     }
 
-    const conversation = ensureConversation({ conversationId, message, provider: policy.provider });
+    const conversation = ensureConversation({ conversationId, ownerId: req.user.id, message, provider: policy.provider });
     if (!conversation) {
       res.write(formatStreamError("not_found: Conversation not found.", "not_found"));
       res.end(formatStreamDone());
@@ -122,7 +139,7 @@ export function registerChatRoutes(app) {
 
     const doneMetadata = { conversationId: conversation.id, messageId: assistantId };
     res.write(`data: ${JSON.stringify({ type: "conversation", conversationId: conversation.id, messageId: userMessage.id })}\n\n`);
-    const history = responseHistory(conversation.id).filter((item) => !(item.role === "assistant" && item.content === ""));
+    const history = responseHistory(conversation.id, req.user.id).filter((item) => !(item.role === "assistant" && item.content === ""));
     const config = { ...baseConfig, provider: policy.provider };
     const providerFn = getProvider(config);
 
@@ -137,6 +154,20 @@ export function registerChatRoutes(app) {
       fallbackProviders: policy.fallbackProviders
     });
 
+    const controller = new AbortController();
+    let disconnected = false;
+    let timedOut = false;
+    const onClose = () => {
+      if (!res.writableEnded) {
+        disconnected = true;
+        controller.abort();
+      }
+    };
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, baseConfig.providerTimeoutMs);
+    res.once("close", onClose);
     try {
       await providerFn({
         message,
@@ -145,22 +176,27 @@ export function registerChatRoutes(app) {
         config,
         stream: true,
         fileId,
+        signal: controller.signal,
         doneMetadata,
-        onComplete: (text, ok, error) => updateMessage(assistantId, {
-          content: text || (error ? `[Provider error] ${error}` : ""),
-          status: ok ? "complete" : "failed",
+        onComplete: (text, ok, error) => updateMessage(assistantId, req.user.id, {
+          content: text || (error ? `[${disconnected ? "Cancelled" : "Provider error"}] ${error}` : ""),
+          status: ok ? "complete" : disconnected ? "cancelled" : "failed",
           provider: policy.provider
         })
       });
     } catch (error) {
-      updateMessage(assistantId, {
-        content: error?.message || "Chat stream failed.",
-        status: "failed"
+      updateMessage(assistantId, req.user.id, {
+        content: timedOut ? "[Provider timeout] The response took too long." : disconnected ? "[Cancelled] The client disconnected." : error?.message || "Chat stream failed.",
+        status: disconnected ? "cancelled" : "failed"
       });
-      if (!res.writableEnded) {
-        res.write(formatStreamError("internal_error: Chat stream error."));
+      if (!res.destroyed && !res.writableEnded) {
+        const code = timedOut ? "provider_timeout" : disconnected ? "cancelled" : "internal_error";
+        res.write(formatStreamError(timedOut ? "Provider request timed out." : disconnected ? "Request cancelled." : "Chat stream error.", code));
         res.end(formatStreamDone(doneMetadata));
       }
+    } finally {
+      clearTimeout(timeout);
+      res.off("close", onClose);
     }
   });
 
@@ -171,7 +207,13 @@ export function registerChatRoutes(app) {
       return;
     }
 
-    const { message, provider, conversationId, fileId, attachmentId } = parsed.value;
+    const { message, provider, conversationId, attachmentId } = parsed.value;
+    const attachment = attachmentId ? getUpload(attachmentId, req.user.id) : null;
+    if (attachmentId && (!attachment || attachment.conversationId !== conversationId)) {
+      res.status(404).json(errorJson("not_found", "File attachment not found."));
+      return;
+    }
+    const fileId = attachment?.providerFileId || undefined;
     const baseConfig = getConfig();
     const decision = await resolveChatDecision({ config: baseConfig, message, fileId, requestedProvider: provider });
     const { route, policy } = decision;
@@ -180,14 +222,14 @@ export function registerChatRoutes(app) {
       return;
     }
 
-    const conversation = ensureConversation({ conversationId, message, provider: policy.provider });
+    const conversation = ensureConversation({ conversationId, ownerId: req.user.id, message, provider: policy.provider });
     if (!conversation) {
       res.status(404).json(errorJson("not_found", "Conversation not found."));
       return;
     }
 
     const userMessage = recordUserMessage(conversation.id, message, policy.provider, attachmentId);
-    const history = responseHistory(conversation.id);
+    const history = responseHistory(conversation.id, req.user.id);
     log("info", "chat_logic_decision", {
       requestId: req.requestId,
       conversationId: conversation.id,
@@ -199,34 +241,42 @@ export function registerChatRoutes(app) {
       fallbackProviders: policy.fallbackProviders
     });
 
+    const controller = new AbortController();
+    let disconnected = false;
+    const onClose = () => { if (!res.writableEnded) { disconnected = true; controller.abort(); } };
+    let timedOut = false;
+    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, baseConfig.providerTimeoutMs || 120000);
+    res.once("close", onClose);
+    try {
     for (const candidate of [policy.provider, ...policy.fallbackProviders]) {
       const config = { ...baseConfig, provider: candidate };
       try {
-        const result = await getProvider(config)({ message, history, res, config, stream: false, fileId });
+        const result = await getProvider(config)({ message, history, res, config, stream: false, fileId, signal: controller.signal });
         if (result?.ok) {
-          const now = new Date().toISOString();
-          const assistant = createMessage({
-            id: createId("msg"),
-            conversationId: conversation.id,
-            role: "assistant",
-            content: result.text || "",
-            provider: candidate,
-            status: "complete",
-            createdAt: now,
-            updatedAt: now
-          });
-          res.json({ ok: true, text: result.text || "", provider: candidate, conversationId: conversation.id, messageId: assistant.id, userMessageId: userMessage.id });
+          const assistant = recordAssistantMessage(conversation.id, result.text || "", candidate);
+          if (!disconnected) res.json({ ok: true, text: result.text || "", provider: candidate, conversationId: conversation.id, messageId: assistant.id, userMessageId: userMessage.id });
           return;
         }
         const retryable = result.code === "provider_rate_limit" || result.code === "provider_unavailable";
         if (!retryable) {
-          res.status(400).json(errorJson(result.code || "provider_error", result.error || "Provider request failed.", { provider: candidate }));
+          const errorMessage = result.error || "Provider request failed.";
+          recordAssistantMessage(conversation.id, `[Provider error] ${errorMessage}`, candidate, "failed");
+          if (!disconnected) res.status(400).json(errorJson(result.code || "provider_error", errorMessage, { provider: candidate }));
           return;
         }
       } catch (error) {
         log("error", "chat_single_provider_exception", { requestId: req.requestId, provider: candidate, message: error?.message || "" });
       }
+      if (controller.signal.aborted) break;
     }
-    res.status(503).json(errorJson("provider_unavailable", "All providers failed for this request."));
+    const failure = timedOut ? "[Provider timeout] The response took too long." : disconnected ? "[Cancelled] The client disconnected." : "[Provider error] All providers failed for this request.";
+    recordAssistantMessage(conversation.id, failure, policy.provider, disconnected ? "cancelled" : "failed");
+    if (!disconnected) {
+      res.status(timedOut ? 504 : 503).json(errorJson(timedOut ? "provider_timeout" : "provider_unavailable", timedOut ? "Provider request timed out." : "All providers failed for this request."));
+    }
+    } finally {
+      clearTimeout(timeout);
+      res.off("close", onClose);
+    }
   });
 }

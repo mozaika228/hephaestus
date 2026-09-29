@@ -17,6 +17,24 @@ db.pragma("synchronous = NORMAL");
 db.pragma("foreign_keys = ON");
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    passwordHash TEXT NOT NULL,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS auth_sessions (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tokenHash TEXT NOT NULL UNIQUE,
+    expiresAt TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_auth_sessions_token ON auth_sessions(tokenHash);
+
   CREATE TABLE IF NOT EXISTS uploads (
     id TEXT PRIMARY KEY,
     name TEXT,
@@ -33,6 +51,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS conversations (
     id TEXT PRIMARY KEY,
+    ownerId TEXT REFERENCES users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     provider TEXT NOT NULL,
     createdAt TEXT NOT NULL,
@@ -56,6 +75,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS tasks (
     id TEXT PRIMARY KEY,
+    ownerId TEXT REFERENCES users(id) ON DELETE CASCADE,
     title TEXT,
     dueAt TEXT,
     priority TEXT,
@@ -66,6 +86,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS jobs (
     id TEXT PRIMARY KEY,
+    ownerId TEXT REFERENCES users(id) ON DELETE CASCADE,
     kind TEXT,
     status TEXT,
     payload TEXT,
@@ -76,6 +97,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS analytics_events (
     id TEXT PRIMARY KEY,
+    ownerId TEXT REFERENCES users(id) ON DELETE CASCADE,
     requestId TEXT,
     method TEXT,
     path TEXT,
@@ -104,6 +126,26 @@ const uploadColumns = db.prepare("PRAGMA table_info(uploads)").all().map((column
 if (!uploadColumns.includes("conversationId")) {
   db.exec("ALTER TABLE uploads ADD COLUMN conversationId TEXT");
 }
+for (const [table, column, definition] of [
+  ["conversations", "ownerId", "TEXT REFERENCES users(id) ON DELETE CASCADE"],
+  ["uploads", "ownerId", "TEXT REFERENCES users(id) ON DELETE CASCADE"],
+  ["tasks", "ownerId", "TEXT REFERENCES users(id) ON DELETE CASCADE"],
+  ["jobs", "ownerId", "TEXT REFERENCES users(id) ON DELETE CASCADE"]
+]) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all().map((item) => item.name);
+  if (!columns.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+const analyticsColumns = db.prepare("PRAGMA table_info(analytics_events)").all().map((item) => item.name);
+if (!analyticsColumns.includes("ownerId")) db.exec("ALTER TABLE analytics_events ADD COLUMN ownerId TEXT REFERENCES users(id) ON DELETE CASCADE");
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_conversations_owner_updated ON conversations(ownerId, updatedAt);
+  CREATE INDEX IF NOT EXISTS idx_uploads_owner_conversation ON uploads(ownerId, conversationId);
+  CREATE INDEX IF NOT EXISTS idx_tasks_owner_created ON tasks(ownerId, createdAt);
+  CREATE INDEX IF NOT EXISTS idx_jobs_owner_created ON jobs(ownerId, createdAt);
+  CREATE INDEX IF NOT EXISTS idx_analytics_owner_created ON analytics_events(ownerId, createdAt);
+`);
+
+db.prepare("DELETE FROM auth_sessions WHERE expiresAt <= ?").run(new Date().toISOString());
 
 db.prepare("UPDATE messages SET status = 'failed', content = CASE WHEN content = '' THEN '[Response interrupted by server restart]' ELSE content END, updatedAt = ? WHERE status = 'pending'")
   .run(new Date().toISOString());

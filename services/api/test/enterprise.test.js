@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { createTestSession } from "./helpers.js";
 
 process.env.HEPHAESTUS_DISABLE_AUTOSTART = "true";
 process.env.SQLITE_DB_PATH = ":memory:";
@@ -35,11 +36,12 @@ test("enterprise SSO flow issues token", async () => {
   await once(server, "listening");
   const { port } = server.address();
   const base = `http://127.0.0.1:${port}`;
+  const token = await createTestSession(base, "sso-test@example.com");
 
   try {
     const startResp = await fetch(`${base}/enterprise/sso/saml/start`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: "{}"
     });
     assert.equal(startResp.status, 200);
@@ -49,7 +51,7 @@ test("enterprise SSO flow issues token", async () => {
 
     const callbackResp = await fetch(`${base}/enterprise/sso/saml/callback`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ state: startPayload.state, email: "admin@example.com" })
     });
     assert.equal(callbackResp.status, 200);
@@ -67,12 +69,13 @@ test("analytics summary collects request events", async () => {
   await once(server, "listening");
   const { port } = server.address();
   const base = `http://127.0.0.1:${port}`;
+  const token = await createTestSession(base, "analytics-test@example.com");
 
   try {
-    await fetch(`${base}/planner/tasks`);
-    await fetch(`${base}/integrations`);
+    await fetch(`${base}/planner/tasks`, { headers: { Authorization: `Bearer ${token}` } });
+    await fetch(`${base}/integrations`, { headers: { Authorization: `Bearer ${token}` } });
 
-    const resp = await fetch(`${base}/enterprise/analytics/summary`);
+    const resp = await fetch(`${base}/enterprise/analytics/summary`, { headers: { Authorization: `Bearer ${token}` } });
     assert.equal(resp.status, 200);
     const payload = await resp.json();
     assert.equal(payload.ok, true);

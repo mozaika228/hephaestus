@@ -2,6 +2,7 @@
 
  import { useEffect, useState } from "react";
  import dynamic from "next/dynamic";
+ import AuthGate from "./components/AuthGate";
  
  const ChatPanel = dynamic(() => import("./components/ChatPanel"), { ssr: false });
  const PlannerPanel = dynamic(() => import("./components/PlannerPanel"), { ssr: false });
@@ -81,6 +82,7 @@
        conversations: "Your conversations",
        newConversation: "New chat"
      },
+    auth: { email: "Email", password: "Password", signIn: "Sign in", signUp: "Create account", switchToSignIn: "Already have an account? Sign in", switchToSignUp: "New to Hephaestus? Create an account", signOut: "Sign out", loading: "Loading your workspace…" },
      planner: {
        title: "Planner",
        subtitle: "Create tasks and sync with integrations.",
@@ -167,6 +169,7 @@
        conversations: "Ваши беседы",
        newConversation: "Новый чат"
      },
+    auth: { email: "Электронная почта", password: "Пароль", signIn: "Войти", signUp: "Создать аккаунт", switchToSignIn: "Уже есть аккаунт? Войти", switchToSignUp: "Впервые в Hephaestus? Создать аккаунт", signOut: "Выйти", loading: "Загружаем ваше пространство…" },
      planner: {
        title: "Планировщик",
        subtitle: "Создавай задачи и синхронизируй с интеграциями.",
@@ -253,6 +256,7 @@
        conversations: "Сөйлесулеріңіз",
        newConversation: "Жаңа чат"
      },
+    auth: { email: "Электрондық пошта", password: "Құпиясөз", signIn: "Кіру", signUp: "Аккаунт құру", switchToSignIn: "Аккаунтыңыз бар ма? Кіру", switchToSignUp: "Hephaestus-ке алғаш рет кірдіңіз бе? Аккаунт құру", signOut: "Шығу", loading: "Жұмыс кеңістігі жүктелуде…" },
      planner: {
        title: "Жоспарлаушы",
        subtitle: "Тапсырма құрып, интеграциялармен синхрондаңыз.",
@@ -296,6 +300,7 @@ export default function HomePage() {
   const t = copy[lang];
  
    return (
+     <AuthGate labels={t.auth}>
      <main className="page">
        <header className="topbar">
          <div className="logo">Hephaestus</div>
@@ -452,5 +457,6 @@ export default function HomePage() {
          <span>© 2026</span>
        </footer>
      </main>
+     </AuthGate>
    );
  }

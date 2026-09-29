@@ -27,9 +27,10 @@ export function getConfig() {
     samlEntryPoint: process.env.SAML_ENTRY_POINT || "",
     samlIssuer: process.env.SAML_ISSUER || "hephaestus",
     samlAudience: process.env.SAML_AUDIENCE || "hephaestus-users",
-    corsAllowedOrigins: process.env.CORS_ALLOWED_ORIGINS || "*",
+    corsAllowedOrigins: process.env.CORS_ALLOWED_ORIGINS || "http://localhost:3000,http://127.0.0.1:3000",
     rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60000),
-    rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 120)
+    rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 120),
+    providerTimeoutMs: Number(process.env.PROVIDER_TIMEOUT_MS || 120000)
   };
 }
 

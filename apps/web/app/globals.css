@@ -374,6 +374,31 @@ input {
 }
 .conversation-layout .console-body { margin-top: 0; min-width: 0; }
 
+.auth-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 30%, rgba(39, 245, 184, 0.12), transparent 42%), var(--bg);
+  color: var(--text);
+}
+.auth-card {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 420px);
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: 0 20px 90px rgba(0, 0, 0, 0.35);
+}
+.auth-card h1 { font-family: "Oxanium", sans-serif; color: var(--accent); }
+.auth-card label { display: grid; gap: 8px; color: var(--muted); }
+.auth-card input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); background: var(--bg-deep); }
+.auth-card small, .auth-error { color: var(--muted); }
+.auth-error { color: #ff9c9c; }
+.auth-toolbar { position: absolute; z-index: 5; top: 16px; right: 20px; display: flex; align-items: center; gap: 12px; color: var(--muted); }
+
 .chat {
   max-height: 260px;
   overflow-y: auto;

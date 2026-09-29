@@ -8,17 +8,17 @@ const validPriorities = new Set(["low", "normal", "high", "urgent"]);
 
 export function registerPlannerRoutes(app) {
   app.get("/planner/tasks", (req, res) => {
-    const key = "planner:list";
+    const key = `planner:list:${req.user.id}`;
     const cached = getCached(key);
     if (cached) {
-      res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=30");
+      res.setHeader("Cache-Control", "private, no-store");
       res.json(cached);
       return;
     }
 
-    const payload = { ok: true, tasks: listTasks() };
+    const payload = { ok: true, tasks: listTasks(req.user.id) };
     setCached(key, payload, 5000);
-    res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=30");
+    res.setHeader("Cache-Control", "private, no-store");
     res.json(payload);
   });
 
@@ -34,6 +34,7 @@ export function registerPlannerRoutes(app) {
     }
     const task = createTask({
       id: createId("task"),
+      ownerId: req.user.id,
       title: title.trim() || "Untitled task",
       dueAt: dueAt || null,
       priority: priority || "normal",
@@ -55,7 +56,7 @@ export function registerPlannerRoutes(app) {
       res.status(400).json(errorJson("invalid_request", "status is invalid."));
       return;
     }
-    const task = updateTask(req.params.id, patch);
+    const task = updateTask(req.params.id, req.user.id, patch);
     if (!task) {
       res.status(404).json(errorJson("not_found", "Task not found."));
       return;
@@ -65,7 +66,7 @@ export function registerPlannerRoutes(app) {
   });
 
   app.get("/planner/tasks/:id", (req, res) => {
-    const task = getTask(req.params.id);
+    const task = getTask(req.params.id, req.user.id);
     if (!task) {
       res.status(404).json(errorJson("not_found", "Task not found."));
       return;

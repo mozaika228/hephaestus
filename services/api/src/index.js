@@ -4,6 +4,8 @@ import multer from "multer";
 
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerConversationRoutes } from "./routes/conversations.js";
+import { registerAuthRoutes } from "./routes/auth.js";
+import { requireAuth } from "./middleware/auth.js";
 import { registerFileRoutes } from "./routes/files.js";
 import { registerPlannerRoutes } from "./routes/planner.js";
 import { registerIntegrationRoutes } from "./routes/integrations.js";
@@ -27,15 +29,28 @@ export function createApp(config = getConfig()) {
 
   const corsConfig = {
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
-        callback(null, true);
+      if (!origin) {
+        callback(null, false);
         return;
       }
-      callback(new Error("CORS blocked"));
-    }
+      if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+        callback(null, origin);
+        return;
+      }
+      callback(null, false);
+    },
+    credentials: true
   };
 
   app.use(cors(corsConfig));
+  app.use((req, res, next) => {
+    const origin = req.get("origin");
+    if (origin && !allowedOrigins.includes("*") && !allowedOrigins.includes(origin)) {
+      res.status(403).json({ ok: false, error: { code: "origin_forbidden", message: "This origin is not allowed." } });
+      return;
+    }
+    next();
+  });
   app.disable("x-powered-by");
   app.use(createRequestLogger());
   app.use(createRateLimiter(config));
@@ -54,6 +69,8 @@ export function createApp(config = getConfig()) {
     res.json({ status: "Hephaestus API online" });
   });
 
+  registerAuthRoutes(app);
+  app.use(requireAuth);
   registerConversationRoutes(app);
   registerChatRoutes(app);
   registerFileRoutes(app, upload);
@@ -63,6 +80,16 @@ export function createApp(config = getConfig()) {
   registerEnterpriseRoutes(app, config);
   registerOrchestratorRoutes(app, config);
   registerPolyglotRoutes(app, config);
+
+  app.use((error, _req, res, next) => {
+    if (res.headersSent) return next(error);
+    if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+      res.status(413).json({ ok: false, error: { code: "file_too_large", message: "Files must be 25 MB or smaller." } });
+      return;
+    }
+    log("error", "unhandled_api_error", { message: error?.message || "Unknown error" });
+    res.status(500).json({ ok: false, error: { code: "internal_error", message: "The request could not be completed." } });
+  });
 
   return app;
 }

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { once } from "node:events";
+import { createTestSession } from "./helpers.js";
 
 process.env.HEPHAESTUS_DISABLE_AUTOSTART = "true";
 process.env.SQLITE_DB_PATH = ":memory:";
@@ -48,11 +49,13 @@ test("orchestrator route proxies successful run", async () => {
   const server = app.listen(0);
   await once(server, "listening");
   const port = server.address().port;
+  const base = `http://127.0.0.1:${port}`;
+  const token = await createTestSession(base, "orchestrator-test@example.com");
 
   try {
-    const resp = await fetch(`http://127.0.0.1:${port}/orchestrator/run`, {
+    const resp = await fetch(`${base}/orchestrator/run`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ prompt: "test prompt" })
     });
     assert.equal(resp.status, 200);

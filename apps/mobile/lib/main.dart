@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const apiBase = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.0.2.2:4000');
 
@@ -25,7 +26,10 @@ class ConsoleScreen extends StatefulWidget {
 }
 
 class _ConsoleScreenState extends State<ConsoleScreen> {
+  static final _secureStorage = FlutterSecureStorage();
   final _controller = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final List<Message> _messages = [];
   List<dynamic> _conversations = [];
   String? _conversationId;
@@ -35,23 +39,71 @@ class _ConsoleScreenState extends State<ConsoleScreen> {
   String? _fileId;
   String? _providerFileId;
   String? _analysis;
+  String? _token;
+  bool _authReady = false;
+  bool _registerMode = false;
+  String? _authError;
 
   @override
   void initState() {
     super.initState();
-    _refreshConversations();
+    _restoreSession();
+  }
+
+  Map<String, String> _headers({bool json = false}) => {
+    if (json) 'Content-Type': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
+
+  Future<void> _restoreSession() async {
+    final saved = await _secureStorage.read(key: 'hephaestus_token');
+    if (saved != null) {
+      try {
+        final response = await http.get(Uri.parse('$apiBase/auth/me'), headers: {'Authorization': 'Bearer $saved'}).timeout(const Duration(seconds: 20));
+        if (response.statusCode == 200) _token = saved;
+        else await _secureStorage.delete(key: 'hephaestus_token');
+      } catch (_) { _authError = 'Cannot connect to the Hephaestus API.'; }
+    }
+    if (mounted) setState(() => _authReady = true);
+    if (_token != null) _refreshConversations();
+  }
+
+  Future<void> _authenticate() async {
+    setState(() { _authError = null; _pending = true; });
+    try {
+      final response = await http.post(Uri.parse('$apiBase/auth/${_registerMode ? 'register' : 'login'}'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'email': _emailController.text.trim(), 'password': _passwordController.text})).timeout(const Duration(seconds: 30));
+      final data = jsonDecode(response.body);
+      if (response.statusCode < 200 || response.statusCode >= 300) throw Exception(data['error']?['message'] ?? 'Sign-in failed');
+      final token = data['token'] as String?;
+      if (token == null || token.isEmpty) throw Exception('Authentication response did not include a session token');
+      _token = token;
+      await _secureStorage.write(key: 'hephaestus_token', value: token);
+      _passwordController.clear();
+      if (mounted) setState(() {});
+      await _refreshConversations();
+    } catch (error) {
+      if (mounted) setState(() => _authError = error.toString().replaceFirst('Exception: ', ''));
+    } finally { if (mounted) setState(() => _pending = false); }
+  }
+
+  Future<void> _signOut() async {
+    if (_token != null) {
+      await http.post(Uri.parse('$apiBase/auth/logout'), headers: _headers()).timeout(const Duration(seconds: 10)).catchError((_) => http.Response('', 500));
+    }
+    await _secureStorage.delete(key: 'hephaestus_token');
+    if (mounted) setState(() { _token = null; _messages.clear(); _conversations = []; _conversationId = null; });
   }
 
   Future<void> _refreshConversations() async {
     try {
-      final response = await http.get(Uri.parse('$apiBase/conversations')).timeout(const Duration(seconds: 20));
+      final response = await http.get(Uri.parse('$apiBase/conversations'), headers: _headers()).timeout(const Duration(seconds: 20));
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && mounted) setState(() => _conversations = data['conversations'] ?? []);
     } catch (_) { /* Keep the chat usable while the API is unavailable. */ }
   }
 
   Future<void> _openConversation(String id) async {
-    final response = await http.get(Uri.parse('$apiBase/conversations/$id')).timeout(const Duration(seconds: 20));
+    final response = await http.get(Uri.parse('$apiBase/conversations/$id'), headers: _headers()).timeout(const Duration(seconds: 20));
     final data = jsonDecode(response.body);
     if (response.statusCode != 200 || !mounted) return;
     setState(() {
@@ -83,7 +135,7 @@ class _ConsoleScreenState extends State<ConsoleScreen> {
 
   Future<String?> _ensureConversation() async {
     if (_conversationId != null) return _conversationId;
-    final response = await http.post(Uri.parse('$apiBase/conversations'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'provider': _provider})).timeout(const Duration(seconds: 20));
+    final response = await http.post(Uri.parse('$apiBase/conversations'), headers: _headers(json: true), body: jsonEncode({'provider': _provider})).timeout(const Duration(seconds: 20));
     final data = jsonDecode(response.body);
     if (response.statusCode != 201) throw Exception(data['error']?['message'] ?? 'Could not create conversation');
     final id = data['conversation']['id'] as String;
@@ -97,7 +149,7 @@ class _ConsoleScreenState extends State<ConsoleScreen> {
     final text = _controller.text.trim();
     setState(() { _messages.add(Message(role: 'user', text: text)); _pending = true; _controller.clear(); });
     try {
-      final response = await http.post(Uri.parse('$apiBase/chat/single'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({
+      final response = await http.post(Uri.parse('$apiBase/chat/single'), headers: _headers(json: true), body: jsonEncode({
         'message': text, 'provider': _provider, 'conversationId': _conversationId, 'fileId': _providerFileId, 'attachmentId': _fileId,
       })).timeout(const Duration(minutes: 2));
       final payload = jsonDecode(response.body);
@@ -125,6 +177,7 @@ class _ConsoleScreenState extends State<ConsoleScreen> {
       final request = http.MultipartRequest('POST', Uri.parse('$apiBase/files/ingest'))
         ..fields['conversationId'] = conversationId!
         ..files.add(http.MultipartFile.fromBytes('file', result.files.first.bytes!, filename: result.files.first.name));
+      request.headers.addAll(_headers());
       final response = await request.send().timeout(const Duration(minutes: 2));
       final payload = jsonDecode(await response.stream.bytesToString());
       if (response.statusCode != 200) throw Exception(payload['error']?['message'] ?? 'Upload failed');
@@ -142,7 +195,7 @@ class _ConsoleScreenState extends State<ConsoleScreen> {
   Future<void> _analyzeFile() async {
     if (_fileId == null) return;
     try {
-      final response = await http.post(Uri.parse('$apiBase/files/$_fileId/analyze')).timeout(const Duration(minutes: 2));
+      final response = await http.post(Uri.parse('$apiBase/files/$_fileId/analyze'), headers: _headers()).timeout(const Duration(minutes: 2));
       final payload = jsonDecode(response.body);
       if (response.statusCode == 200 && mounted) setState(() => _analysis = payload['analysis']?['text'] ?? payload['analysis']?['error'] ?? '');
     } catch (error) {
@@ -154,13 +207,17 @@ class _ConsoleScreenState extends State<ConsoleScreen> {
   void dispose() { _controller.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    if (!_authReady) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_token == null) return _buildAuthScreen();
+    return Scaffold(
     body: Container(
       decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF020403), Color(0xFF020807)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
       child: SafeArea(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Expanded(child: Text('Hephaestus', style: TextStyle(fontSize: 26, color: Color(0xFF27F5B8), fontWeight: FontWeight.bold))),
+                const Expanded(child: Text('Hephaestus', style: TextStyle(fontSize: 26, color: Color(0xFF27F5B8), fontWeight: FontWeight.bold))),
           IconButton(onPressed: _newConversation, icon: const Icon(Icons.add_comment_outlined), tooltip: 'New chat'),
+                IconButton(onPressed: _signOut, icon: const Icon(Icons.logout), tooltip: 'Sign out'),
           DropdownButton<String>(value: _provider, items: const [DropdownMenuItem(value: 'openai', child: Text('OpenAI')), DropdownMenuItem(value: 'ollama', child: Text('Ollama'))], onChanged: (value) { if (value != null) setState(() => _provider = value); }),
         ]),
         SizedBox(height: 48, child: ListView(scrollDirection: Axis.horizontal, children: _conversations.map((item) => Padding(padding: const EdgeInsets.only(right: 8), child: ActionChip(label: Text(item['title'] ?? 'Chat'), onPressed: () => _openConversation(item['id'])))).toList())),
@@ -174,6 +231,21 @@ class _ConsoleScreenState extends State<ConsoleScreen> {
         if (_analysis != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_analysis!)),
       ]))),
     ),
+    );
+  }
+
+  Widget _buildAuthScreen() => Scaffold(
+    body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Text('Hephaestus', style: TextStyle(fontSize: 30, color: Color(0xFF27F5B8), fontWeight: FontWeight.bold)),
+      const SizedBox(height: 24),
+      TextField(controller: _emailController, keyboardType: TextInputType.emailAddress, autofillHints: const [AutofillHints.email], decoration: const InputDecoration(labelText: 'Email')),
+      TextField(controller: _passwordController, obscureText: true, autofillHints: [_registerMode ? AutofillHints.newPassword : AutofillHints.password], decoration: const InputDecoration(labelText: 'Password')),
+      if (_registerMode) const Padding(padding: EdgeInsets.only(top: 8), child: Text('Use at least 12 characters.')),
+      if (_authError != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_authError!, style: const TextStyle(color: Colors.redAccent))),
+      const SizedBox(height: 16),
+      SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _pending ? null : _authenticate, child: Text(_pending ? 'Please wait…' : _registerMode ? 'Create account' : 'Sign in'))),
+      TextButton(onPressed: () => setState(() { _registerMode = !_registerMode; _authError = null; }), child: Text(_registerMode ? 'Already have an account? Sign in' : 'New to Hephaestus? Create an account')),
+    ])))),
   );
 }
 

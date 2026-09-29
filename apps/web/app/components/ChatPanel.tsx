@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { apiFetch } from "../apiClient";
 
 const PROVIDERS = [
   { id: "openai", label: "OpenAI" },
@@ -45,13 +46,13 @@ export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const refreshConversations = useCallback(async () => {
-    const response = await fetch(`${apiBase}/conversations`);
+    const response = await apiFetch(`${apiBase}/conversations`);
     const payload = await response.json();
     if (payload.ok) setConversations(payload.conversations || []);
   }, [apiBase]);
 
   const openConversation = useCallback(async (id: string) => {
-    const response = await fetch(`${apiBase}/conversations/${id}`);
+    const response = await apiFetch(`${apiBase}/conversations/${id}`);
     const payload = await response.json();
     if (!payload.ok) return;
     setConversationId(id);
@@ -86,7 +87,7 @@ export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
     setPending(true);
     let assistantText = "";
     try {
-      const response = await fetch(`${apiBase}/chat`, {
+      const response = await apiFetch(`${apiBase}/chat`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userText, provider, conversationId: conversationId || undefined, fileId: fileInfo?.providerFileId, attachmentId: fileInfo?.id })
       });
@@ -124,7 +125,7 @@ export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
     if (!file) return;
     let activeId = conversationId;
     if (!activeId) {
-      const created = await fetch(`${apiBase}/conversations`, {
+      const created = await apiFetch(`${apiBase}/conversations`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider })
       }).then((response) => response.json());
       if (!created.ok) return;
@@ -136,14 +137,14 @@ export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
     const form = new FormData();
     form.append("file", file);
     form.append("conversationId", activeId);
-    const response = await fetch(`${apiBase}/files/ingest`, { method: "POST", body: form });
+    const response = await apiFetch(`${apiBase}/files/ingest`, { method: "POST", body: form });
     const payload = await response.json();
     if (payload.ok) { setFileInfo(payload.file); setAnalysis(null); }
   };
 
   const analyzeFile = async () => {
     if (!fileInfo?.id) return;
-    const payload = await fetch(`${apiBase}/files/${fileInfo.id}/analyze`, { method: "POST" }).then((response) => response.json());
+    const payload = await apiFetch(`${apiBase}/files/${fileInfo.id}/analyze`, { method: "POST" }).then((response) => response.json());
     if (payload.ok) setAnalysis(payload.analysis);
   };
 

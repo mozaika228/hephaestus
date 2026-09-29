@@ -1,5 +1,7 @@
 import { createId } from "../store/ids.js";
 import { createAnalyticsEvent } from "../store/analytics.js";
+import { readBearerToken } from "./auth.js";
+import { getUserForToken } from "../store/auth.js";
 
 export function createAnalyticsTracker(config) {
   return (req, res, next) => {
@@ -11,6 +13,7 @@ export function createAnalyticsTracker(config) {
 
       createAnalyticsEvent({
         id: createId("evt"),
+        ownerId: req.user?.id || getUserForToken(readBearerToken(req))?.id || null,
         requestId: req.requestId || null,
         method: req.method,
         path: req.path,
