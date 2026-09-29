@@ -9,16 +9,17 @@ const argonOptions = { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, pa
 const attempts = new Map();
 const dummyPasswordHash = argon2.hash("not-a-real-user-password", argonOptions);
 
-function setSessionCookie(res, session) {
+function setSessionCookie(req, res, session) {
   const maxAge = Math.max(0, Math.floor((Date.parse(session.expiresAt) - Date.now()) / 1000));
-  const secure = process.env.NODE_ENV === "production" || Boolean(process.env.RENDER);
-  res.setHeader("Set-Cookie", `hephaestus_session=${session.token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${secure ? "; Secure" : ""}`);
+  const secure = process.env.NODE_ENV === "production" || Boolean(process.env.RENDER) || req.secure;
+  const sameSite = secure ? "None" : "Lax";
+  res.setHeader("Set-Cookie", `hephaestus_session=${session.token}; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=${maxAge}${secure ? "; Secure" : ""}`);
 }
 
 function authResponse(req, res, user, session, status = 200) {
   res.setHeader("Cache-Control", "no-store");
   if (req.body?.client === "web") {
-    setSessionCookie(res, session);
+    setSessionCookie(req, res, session);
     res.status(status).json({ ok: true, user, expiresAt: session.expiresAt });
     return;
   }
@@ -93,7 +94,8 @@ export function registerAuthRoutes(app) {
     if (token) revokeSession(token);
     if (req.get("cookie")?.includes("hephaestus_session=")) {
       const secure = process.env.NODE_ENV === "production" || Boolean(process.env.RENDER);
-      res.setHeader("Set-Cookie", `hephaestus_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure ? "; Secure" : ""}`);
+      const sameSite = secure ? "None" : "Lax";
+      res.setHeader("Set-Cookie", `hephaestus_session=; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=0${secure ? "; Secure" : ""}`);
     }
     res.setHeader("Cache-Control", "no-store");
     res.json({ ok: true });

@@ -84,11 +84,17 @@ test("account ownership, streaming persistence, and files survive an API restart
   const tokenB = accountB.payload.token;
   assert.ok(tokenA && tokenB && tokenA !== tokenB);
 
+  const previousRender = process.env.RENDER;
+  process.env.RENDER = "true";
   const browserAccount = await request("/auth/register", { method: "POST", body: { email: "web@example.com", password: "browser session secret", client: "web" } });
+  if (previousRender === undefined) delete process.env.RENDER;
+  else process.env.RENDER = previousRender;
   assert.equal(browserAccount.response.status, 201);
   assert.equal(browserAccount.payload.token, undefined);
   const setCookie = browserAccount.response.headers.get("set-cookie");
   assert.match(setCookie, /HttpOnly/);
+  assert.match(setCookie, /SameSite=None/);
+  assert.match(setCookie, /Secure/);
   const browserCookie = setCookie.split(";")[0];
   assert.equal((await request("/auth/me", { headers: { Cookie: browserCookie } })).response.status, 200);
 

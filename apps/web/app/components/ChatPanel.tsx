@@ -91,7 +91,11 @@ export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userText, provider, conversationId: conversationId || undefined, fileId: fileInfo?.providerFileId, attachmentId: fileInfo?.id })
       });
-      if (!response.ok || !response.body) throw new Error("Chat request failed");
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error?.message || `Chat request failed (${response.status})`);
+      }
+      if (!response.body) throw new Error("The API returned an empty response stream.");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -114,8 +118,9 @@ export default function ChatPanel({ labels }: { labels: ChatPanelLabels }) {
         }
       }
       await refreshConversations();
-    } catch {
-      setMessages((prev) => prev.map((item, index) => index === prev.length - 1 ? { ...item, text: labels.connectionError } : item));
+    } catch (cause) {
+      const errorText = cause instanceof Error ? cause.message : labels.connectionError;
+      setMessages((prev) => prev.map((item, index) => index === prev.length - 1 ? { ...item, text: errorText } : item));
     } finally {
       setPending(false);
     }
