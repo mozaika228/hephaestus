@@ -8,7 +8,11 @@ type Labels = {
 };
 
 export default function AuthGate({ children, labels }: { children: ReactNode; labels: Labels }) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000";
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE || (
+    typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+      ? "https://hephaestus-api.onrender.com"
+      : "http://localhost:4000"
+  );
   const [authenticated, setAuthenticated] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

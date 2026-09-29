@@ -19,7 +19,7 @@ before(async () => {
   process.env.OPENAI_API_KEY = "test-api-key";
   process.env.AI_SERVICE_URL = "http://127.0.0.1:1";
   process.env.HEPHAESTUS_DISABLE_AUTOSTART = "true";
-  process.env.CORS_ALLOWED_ORIGINS = "*";
+  process.env.CORS_ALLOWED_ORIGINS = "http://localhost:3000,https://hephaestus-web.onrender.com";
 
   ({ createApp } = await import("../src/index.js"));
   ({ getDb: database } = await import("../src/store/db.js"));
@@ -61,6 +61,18 @@ async function waitForHealth(url) {
 }
 
 test("account ownership, streaming persistence, and files survive an API restart", async () => {
+  const corsPreflight = await request("/auth/register", {
+    method: "OPTIONS",
+    headers: {
+      Origin: "https://hephaestus-web.onrender.com",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type"
+    }
+  });
+  assert.equal(corsPreflight.response.status, 204);
+  assert.equal(corsPreflight.response.headers.get("access-control-allow-origin"), "https://hephaestus-web.onrender.com");
+  assert.equal(corsPreflight.response.headers.get("access-control-allow-credentials"), "true");
+
   const unauthenticated = await request("/conversations");
   assert.equal(unauthenticated.response.status, 401);
 
